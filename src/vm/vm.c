@@ -70,12 +70,14 @@ DecodedInstruction* decode_instruction(VMContext* ctx, MemoryArena* arena) {
         return NULL;
     }
 
-    DecodedInstruction out = {0};
+    DecodedInstruction* out =
+        (DecodedInstruction*)arena_calloc(arena, 0, sizeof(DecodedInstruction));
 
     uint8_t           opcode   = instruction[OPCODE_INDEX];
     uint8_t           metadata = instruction[METADATA_INDEX];
     const OpcodeInfo* info     = &opcode_info[opcode];
-    out.opcode                 = (Opcode)opcode;
+    out->opcode                = (Opcode)opcode;
+    out->metadata_flags        = metadata;
 
     for (int i = 0; i < info->operand_count; i++) {
         const uint8_t reg_id_ptr = instruction[i + 1];
@@ -85,30 +87,45 @@ DecodedInstruction* decode_instruction(VMContext* ctx, MemoryArena* arena) {
                 int32_t        immediate_value;
                 const uint8_t* immediate_ptr = instruction + IMMEDIATE_VALUE_START;
                 memcpy(&immediate_value, immediate_ptr, sizeof(int32_t));
-                out.operands[i].kind            = VM_OT_IMMEDIATE;
-                out.operands[i].value.immediate = immediate_value;
+                out->operands[i].kind            = VM_OT_IMMEDIATE;
+                out->operands[i].value.immediate = immediate_value;
+                break;
             } else { // register
-                uint8_t reg_id               = reg_id_ptr;
-                out.operands[i].kind         = VM_OT_REGISTER;
-                out.operands[i].value.reg_id = reg_id;
+                uint8_t reg_id                = reg_id_ptr;
+                out->operands[i].kind         = VM_OT_REGISTER;
+                out->operands[i].value.reg_id = reg_id;
+                break;
             }
         }
         case OT_REGISTER: {
-            uint8_t reg_id               = reg_id_ptr;
-            out.operands[i].kind         = VM_OT_REGISTER;
-            out.operands[i].value.reg_id = reg_id;
+            uint8_t reg_id                = reg_id_ptr;
+            out->operands[i].kind         = VM_OT_REGISTER;
+            out->operands[i].value.reg_id = reg_id;
+            break;
         }
         case OT_IMMEDIATE: {
             int32_t        immediate_value;
             const uint8_t* immediate_ptr = instruction + IMMEDIATE_VALUE_START;
             memcpy(&immediate_value, immediate_ptr, sizeof(int32_t));
+            out->operands[i].kind            = VM_OT_IMMEDIATE;
+            out->operands[i].value.immediate = immediate_value;
+            break;
         }
         case OT_SYMBOL: {
+            uint32_t       address_value;
+            const uint8_t* address_ptr = instruction + IMMEDIATE_VALUE_START;
+            memcpy(&address_value, address_ptr, sizeof(uint32_t));
+            out->operands[i].kind          = VM_OT_ADDRESS;
+            out->operands[i].value.address = address_value;
+            break;
         }
         case OT_NONE: {
+            out->operands[i].kind = VM_OT_NONE;
+            break;
         }
         }
     }
+    return out;
 }
 
 void read_bytecode(VMContext* ctx, size_t size) {

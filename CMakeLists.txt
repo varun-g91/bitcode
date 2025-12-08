@@ -88,3 +88,6 @@ set_target_properties(bitlang PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
+# --------------------------------------------------------
+# 9. Tests
+# --------------------------------------------------------
