@@ -48,7 +48,7 @@ void* arena_calloc(MemoryArena* arena, int count, size_t size) {
         LOG_ERROR("Arena allocation failed\n");
         return NULL;
     }
-    memset(ptr, 0, count * size);
+    memset(ptr, 0, total_size);
     return ptr;
 }
 
@@ -62,6 +62,10 @@ void arena_resize(MemoryArena* arena, size_t size) {
     if (new_buffer == NULL) {
         LOG_ERROR("Failed to resize arena buffer from %zu to %zu bytes.\nABORTING...\n",
                   arena->size, new_size);
+        free(arena->buffer);
+        arena->buffer = NULL;
+        arena->size   = 0;
+        exit(1);
         return;
     }
     arena->size   = new_size;

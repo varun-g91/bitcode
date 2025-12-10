@@ -11,8 +11,8 @@ static void init_opcode_table() {
         opcode_from_value[i] = OP_UNKNOWN;
 
     // Now fill real ones
-    opcode_from_value[0x00] = OP_STORE;
-    opcode_from_value[0x01] = OP_LOAD;
+    opcode_from_value[0x00] = OP_PRINT;
+    opcode_from_value[0x01] = OP_MOV;
     opcode_from_value[0x02] = OP_ADD;
     opcode_from_value[0x03] = OP_SUB;
     opcode_from_value[0x04] = OP_MUL;

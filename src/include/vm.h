@@ -40,13 +40,15 @@
 #define IMMEDIATE_VALUE_START 3
 #define METADATA_INDEX 7
 
-typedef enum {
+typedef enum
+{
     VM_STATE_RUNNING,
     VM_STATE_HALTED,
     VM_STATE_ERROR,
 } VMStates;
 
-typedef struct {
+typedef struct
+{
     VMStates     state;
     uint64_t     registers[16];
     uint8_t*     memory;
@@ -57,25 +59,29 @@ typedef struct {
     uint64_t     flags[4];
 } VMContext;
 
-typedef enum {
+typedef enum
+{
     VM_OT_REGISTER,
     VM_OT_IMMEDIATE,
     VM_OT_ADDRESS,
     VM_OT_NONE,
 } VMOperandKind;
 
-typedef union {
+typedef union
+{
     uint8_t  reg_id;
     int32_t  immediate;
     uint32_t address;
 } VMOperandValue;
 
-typedef struct {
+typedef struct
+{
     VMOperandKind  kind;
     VMOperandValue value;
 } VMOperand;
 
-typedef struct {
+typedef struct
+{
     Opcode    opcode;
     uint8_t   metadata_flags;
     VMOperand operands[3];

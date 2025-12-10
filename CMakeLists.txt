@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.10)
 project(BitLangCompiler C)
 
@@ -20,34 +19,26 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 
 # --------------------------------------------------------
-# 3. Source files
+# 2. Source files (Dynamic Listing - RECOMMENDED CHANGE)
 # --------------------------------------------------------
-set(BITLANG_SOURCES
-    src/main.c
-    src/utils/logger/logger.c
-    src/lexer/lexer.c
-    src/parser/parser.c
-    src/utils/arena_allocator/arena_allocator.c
-    src/utils/token_stream/token_stream.c
-    src/utils/symbol_table/symbol_table.c
-    src/vm/vm.c
-    src/vm/opcodes.c
-    src/vm/registers.c
-    src/vm/instruction_format_table.c
-    src/assembler/assembler_context.c
-    src/vm/instruction_format_table.c
+# Use file(GLOB) or GLOB_RECURSE to automatically find all source files
+# Adjust glob patterns based on your exact file structure.
+file(GLOB BITLANG_CORE_SOURCES
+    "${CMAKE_SOURCE_DIR}/src/utils/*.c"
+    "${CMAKE_SOURCE_DIR}/src/utils/*/*.c"
+    "${CMAKE_SOURCE_DIR}/src/lexer/*.c"
+    "${CMAKE_SOURCE_DIR}/src/parser/*.c"
+    "${CMAKE_SOURCE_DIR}/src/vm/*.c"
+    "${CMAKE_SOURCE_DIR}/src/assembler/*.c"
 )
+# Note: The main file src/main.c should NOT be included here.
 
 # --------------------------------------------------------
+# 3. Directories and ASAN Configuration
 # --------------------------------------------------------
-# Set the base source and include directories
 set(BITLANG_SOURCE_DIR ${CMAKE_SOURCE_DIR}/src)
 set(BITLANG_INCLUDE_DIR ${BITLANG_SOURCE_DIR}/include)
-
-# Add include directories to the compiler's include path
-include_directories(${BITLANG_INCLUDE_DIR})
-
-# Add a custom target for building with address sanitizer
+# Removed global add_definitions(-DCOMPILER_DEBUG_BUILD)
 option(ENABLE_ASAN "Enable AddressSanitizer" ON)
 if(ENABLE_ASAN AND (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang"))
     message(STATUS "AddressSanitizer enabled")
@@ -56,23 +47,40 @@ if(ENABLE_ASAN AND (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang"))
 endif()
 
 # --------------------------------------------------------
-# 5. Create executable and add include paths
+# 4. Create Library Target (vm_library)
 # --------------------------------------------------------
-add_executable(bitlang ${BITLANG_SOURCES})
 
-# Add include directories to the target
-target_include_directories(bitlang PRIVATE ${BITLANG_INCLUDE_DIR})
+# Define the library that holds all the core VM and compiler logic
+add_library(vm_library ${BITLANG_CORE_SOURCES})
 
-# Add compile definitions for debug builds
-target_compile_definitions(bitlang PRIVATE $<$<CONFIG:Debug>:COMPILER_DEBUG_BUILD=1>)
+# Ensure the library has access to its own includes and makes them PUBLIC
+target_include_directories(vm_library PUBLIC ${BITLANG_INCLUDE_DIR})
+
+# Apply compile definitions (like COMPILER_DEBUG_BUILD) to the library
+target_compile_definitions(vm_library PUBLIC 
+    $<$<CONFIG:Debug>:COMPILER_DEBUG_BUILD=1>
+)
+
+
+# --------------------------------------------------------
+# 5. Create Executable (The Main Compiler)
+# --------------------------------------------------------
+add_executable(bitlang src/main.c)
+
+# Link the executable to the core library (inherits includes and compile definitions)
+target_link_libraries(bitlang PRIVATE vm_library)
+
 
 # --------------------------------------------------------
 # 6. Installation
 # --------------------------------------------------------
 install(TARGETS bitlang
     RUNTIME DESTINATION bin
-    LIBRARY DESTINATION lib
+)
+
+install(TARGETS vm_library
     ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
 )
 
 # Install headers
@@ -82,12 +90,36 @@ install(DIRECTORY ${BITLANG_INCLUDE_DIR}/
 )
 
 # --------------------------------------------------------
-# 8. Output directory
+# 7. Output directory
 # --------------------------------------------------------
 set_target_properties(bitlang PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
 # --------------------------------------------------------
-# 9. Tests
+# 8. Tests
 # --------------------------------------------------------
+# 8.1. Enable CTest
+enable_testing()
+
+# Define the source files for the test executable
+set(TEST_SOURCES
+    tests/unity.c
+    tests/test_main.c
+    tests/test_lexer.c
+    # tests/test_decoder.c 
+)
+
+# 8.2. Create the test executable
+add_executable(vm_tests ${TEST_SOURCES})
+
+# 8.3. Link the test executable to the core VM library
+target_link_libraries(vm_tests PRIVATE vm_library)
+
+# 8.4. Register the test executable with CTest
+add_test(NAME RunAllTests COMMAND vm_tests)
+
+# 8.5. Set output directory for tests
+set_target_properties(vm_tests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)

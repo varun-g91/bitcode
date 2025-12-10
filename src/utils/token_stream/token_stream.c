@@ -1,7 +1,7 @@
 #include "token_stream.h"
-#include "../arena_allocator.h"
-#include "../../lexer.h"
-#include "../../logger.h"
+#include "arena_allocator.h"
+#include "lexer.h"
+#include "logger.h"
 #include <stdlib.h>
 
 Token peek(TokenStream* ts) {

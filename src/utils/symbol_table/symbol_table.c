@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-SymbolTable* symbol_table_init(MemoryArena* arena) {
+SymbolTable* symbol_table_init() {
     SymbolTable* symbol_table = NULL;
     return symbol_table;
 }

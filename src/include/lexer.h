@@ -10,7 +10,8 @@
 // ------------------------
 
 // Token categories
-typedef enum {
+typedef enum
+{
     TOK_OPCODE,
     TOK_REGISTER,
     TOK_NUMBER,
@@ -24,7 +25,8 @@ typedef enum {
 } TokenKind;
 
 // For separators like ',', '\n', etc.
-typedef enum {
+typedef enum
+{
     SEP_COMMA,
     SEP_EOL,
     SEP_EOF,
@@ -32,7 +34,8 @@ typedef enum {
 
 // Opcodes and registers
 
-typedef enum {
+typedef enum
+{
     OP_PRINT = 0x00,
     OP_MOV   = 0x01,
     OP_ADD   = 0x02,
@@ -63,7 +66,8 @@ typedef enum {
     OP_UNKNOWN = 0xFF
 } Opcode;
 
-typedef enum {
+typedef enum
+{
     REG_R0      = 0x00,
     REG_R1      = 0x01,
     REG_R2      = 0x02,
@@ -77,42 +81,61 @@ typedef enum {
     REG_UNKNOWN = 0xFF
 } Register;
 
-typedef enum {
+typedef enum
+{
     LIT_LONG_LONG,
     LIT_CHAR,
     LIT_STR,
 } LiteralType;
 
-typedef union {
+typedef union
+{
     long long longValue;
     char      charValue;
     char*     stringValue;
 } LiteralValue;
 
-typedef struct {
+typedef struct
+{
     LiteralType  type;
     LiteralValue value;
 } Literal;
 
-typedef union {
+typedef union
+{
     Register reg;
     Literal  literal;
     char*    symbol;
 } OperandValue;
 
 // Types of operand
-typedef enum { OT_REGISTER, OT_IMMEDIATE, OT_SYMBOL, OT_ANY_SOURCE, OT_NONE } OperandType;
+typedef enum
+{
+    OT_REGISTER,
+    OT_IMMEDIATE,
+    OT_SYMBOL,
+    OT_ANY_SOURCE,
+    OT_NONE
+} OperandType;
 
-typedef struct {
+typedef struct
+{
     OperandType  type;
     OperandValue value;
 } Operand;
 
 // Directives
-typedef enum { DIRECT_START, DIRECT_DATA, DIRECT_RODATA, DIRECT_UNKNOWN } Directive;
+typedef enum
+{
+    DIRECT_START,
+    DIRECT_DATA,
+    DIRECT_RODATA,
+    DIRECT_UNKNOWN
+} Directive;
 
 // Union to hold data for different token kinds
-typedef union {
+typedef union
+{
     Opcode        opcode;
     Operand       operand;
     Directive     directive;
@@ -121,7 +144,8 @@ typedef union {
 } TokenValue;
 
 // Main token structurestrtol(lexeme, NULL, 10);
-typedef struct {
+typedef struct
+{
     TokenKind  kind;
     TokenValue value;
     char*      lexeme; // original text, optional but useful for debugging
@@ -129,7 +153,8 @@ typedef struct {
 // ------------------------
 // OPCODE / REGISTER TABLES
 // ------------------------
-typedef struct {
+typedef struct
+{
     Token* items;
     int    count;
     int    capacity;

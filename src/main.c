@@ -8,11 +8,13 @@
 #define MAX_ARENA_SIZE (1 * 1024 * 1024) // 1 MB
 #define INITIAL_TOKEN_CAPACITY 256
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
     MemoryArena arena;
     arena_init(&arena, MAX_ARENA_SIZE);
 
-    if (argc < 2) {
+    if (argc < 2)
+    {
         LOG_ERROR("Usage: %s <input_file>", argv[0]); // Replaced fprintf(stderr, ...)
         return EXIT_FAILURE;
     }
@@ -24,7 +26,8 @@ int main(int argc, char* argv[]) {
 
     int          total_token_count = 0;
     TokenVector* token_vector      = run_lexer(&arena, input_file, &total_token_count);
-    if (token_vector->items == NULL) {
+    if (token_vector->items == NULL)
+    {
         LOG_ERROR("Lexing failed.\n");
         fclose(input_file);
         arena_free(&arena);
@@ -32,13 +35,19 @@ int main(int argc, char* argv[]) {
     }
     Token* all_tokens = token_vector->items;
     LOG_INFO("Total tokens produced: %d", total_token_count);
-    for (int i = 0; i < total_token_count; i++) {
+    fprintf(stderr, "--- Starting Token Debug Loop ---\n");
+    LOG_DEBUG("total_token_count: %d", total_token_count);
+    for (int i = 0; i < total_token_count; i++)
+    {
         // Use the debug printing logic you developed
-        if (all_tokens[i].kind == TOK_LITERAL) {
+        if (all_tokens[i].kind == TOK_LITERAL)
+        {
             LOG_DEBUG("Token #%d value=%lld: Kind=%d, Lexeme=%s", i,
                       all_tokens[i].value.operand.value.literal.value.longValue, all_tokens[i].kind,
                       all_tokens[i].lexeme);
-        } else {
+        }
+        else
+        {
             LOG_DEBUG("Token #%d value=%d: Kind=%d, Lexeme=%s", i, all_tokens[i].value.opcode,
                       all_tokens[i].kind, all_tokens[i].lexeme);
         }

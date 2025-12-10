@@ -1,5 +1,6 @@
 #include "assembler_context.h"
 #include "arena_allocator.h"
+#include "vm.h"
 
 AssemblerContext* asm_ctx_init(MemoryArena* arena) {
     AssemblerContext* asm_ctx = (AssemblerContext*)arena_alloc(arena, sizeof(AssemblerContext));

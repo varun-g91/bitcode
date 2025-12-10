@@ -8,6 +8,6 @@ typedef struct {
     UT_hash_handle hh;
 } SymbolTable;
 
-SymbolTable* symbol_table_init(MemoryArena* arena);
+SymbolTable* symbol_table_init();
 bool         symbol_table_add(MemoryArena*, SymbolTable**, const char*, uint32_t);
 uint32_t     symbol_table_lookup(SymbolTable*, const char*);
