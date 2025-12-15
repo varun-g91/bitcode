@@ -15,14 +15,14 @@
 //  OPCODE LIST
 // ------------------------
 
-const char* const OPCODES[] = {
-    "MOV", "ADD", "SUB", "MUL", "DIV", "MOD", "AND",  "OR",  "NOT", "CMP",  "JZ",
-    "JNZ", "JEQ", "JGT", "JGE", "JLT", "JLE", "CALL", "RET", "JMP", "PUSH", "POP",
-};
+const char* const OPCODES[] = {"PRINT_CHR", "PRINT_STR", "MOV",  "LOAD_ADDR", "ADD", "SUB", "MUL",
+                               "DIV",       "MOD",       "AND",  "OR",        "NOT", "CMP", "JZ",
+                               "JNZ",       "JEQ",       "JGT",  "JGE",       "JLT", "JLE", "JMP",
+                               "CALL",      "RET",       "PUSH", "POP"};
 
 const int NUM_OPCODES = sizeof(OPCODES) / sizeof(OPCODES[0]);
 
-const char* const REGISTERS[] = {"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "SP", "BP"};
+const char* const REGISTERS[] = {"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "SP", "BP", "HP"};
 
 const int NUM_REGISTERS = sizeof(REGISTERS) / sizeof(REGISTERS[0]);
 

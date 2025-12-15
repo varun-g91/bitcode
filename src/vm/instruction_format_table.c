@@ -5,10 +5,12 @@ const OpcodeInfo opcode_info[256] = {
     // (Source) | .operands[2]
 
     // --- Utility ---
-    [OP_PRINT] = {"PRINT", 1, {OT_REGISTER, OT_NONE}},
+    [OP_PRINT_CHR] = {"PRINT", 1, {OT_REGISTER, OT_NONE}},
+    [OP_PRINT_STR] = {"PRINT", 1, {OT_ANY_SOURCE, OT_NONE}},
 
     // --- Data Transfer ---
-    [OP_MOV] = {"MOV", 2, {OT_REGISTER, OT_ANY_SOURCE}},
+    [OP_MOV]       = {"MOV", 2, {OT_REGISTER, OT_ANY_SOURCE}},
+    [OP_LOAD_ADDR] = {"LOAD_ADDR", 2, {OT_REGISTER, OT_ANY_SOURCE}},
 
     // --- Arithmetic / Logic ---
     [OP_ADD] = {"ADD", 2, {OT_REGISTER, OT_ANY_SOURCE}},

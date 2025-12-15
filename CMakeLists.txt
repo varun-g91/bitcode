@@ -29,6 +29,7 @@ file(GLOB BITLANG_CORE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/lexer/*.c"
     "${CMAKE_SOURCE_DIR}/src/parser/*.c"
     "${CMAKE_SOURCE_DIR}/src/vm/*.c"
+    "${CMAKE_SOURCE_DIR}/src/vm/vm_utils/*.c"
     "${CMAKE_SOURCE_DIR}/src/assembler/*.c"
 )
 # Note: The main file src/main.c should NOT be included here.
@@ -107,7 +108,9 @@ set(TEST_SOURCES
     tests/unity.c
     tests/test_main.c
     tests/test_lexer.c
-    # tests/test_decoder.c 
+    tests/test_decoder.c 
+    tests/test_common.c
+    tests/test_vm.c
 )
 
 # 8.2. Create the test executable

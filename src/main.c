@@ -1,11 +1,9 @@
 #include "arena_allocator.h"
 #include "lexer.h"
 #include "logger.h"
-#include "token_stream.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MAX_ARENA_SIZE (1 * 1024 * 1024) // 1 MB
 #define INITIAL_TOKEN_CAPACITY 256
 
 int main(int argc, char* argv[])

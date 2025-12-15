@@ -36,33 +36,40 @@ typedef enum
 
 typedef enum
 {
-    OP_PRINT = 0x00,
-    OP_MOV   = 0x01,
-    OP_ADD   = 0x02,
-    OP_SUB   = 0x03,
-    OP_MUL   = 0x04,
-    OP_DIV   = 0x05,
-    OP_MOD   = 0x06,
-    OP_AND   = 0x07,
-    OP_OR    = 0x08,
-    OP_NOT   = 0x09,
-    OP_CMP   = 0x0A,
+    // I/O
+    OP_PRINT_CHR = 0x00,
+    OP_PRINT_STR = 0x01,
+    // Data transfer
+    OP_MOV       = 0x02,
+    OP_LOAD_ADDR = 0x03, // LOAD_ADDR R1, my_string;
 
-    OP_JZ  = 0x0B,
-    OP_JNZ = 0x0C,
-    OP_JEQ = 0x0D,
-    OP_JGT = 0x0E,
-    OP_JGE = 0x0F,
-    OP_JLT = 0x10,
-    OP_JLE = 0x11,
-
-    OP_CALL = 0x12,
-    OP_RET  = 0x13,
-    OP_JMP  = 0x14,
-
-    OP_PUSH = 0x15,
-    OP_POP  = 0x16,
-
+    // Arithmatic
+    OP_ADD = 0x04,
+    OP_SUB = 0x05,
+    OP_MUL = 0x07,
+    OP_DIV = 0x08,
+    OP_MOD = 0x09,
+    // Logical
+    OP_AND = 0x0a,
+    OP_OR  = 0x0b,
+    OP_NOT = 0x0C,
+    // Control flow
+    OP_CMP = 0x0D,
+    OP_JZ  = 0x0E,
+    OP_JNZ = 0x0F,
+    OP_JEQ = 0x10,
+    OP_JGT = 0x11,
+    OP_JGE = 0x12,
+    OP_JLT = 0x13,
+    OP_JLE = 0x14,
+    OP_JMP = 0x15,
+    // Procedure
+    OP_CALL = 0x16,
+    OP_RET  = 0x17,
+    // Stack
+    OP_PUSH = 0x18,
+    OP_POP  = 0x19,
+    // Unknown
     OP_UNKNOWN = 0xFF
 } Opcode;
 
@@ -78,6 +85,7 @@ typedef enum
     REG_R7      = 0x07,
     REG_SP      = 0x08,
     REG_BP      = 0x09,
+    REG_HP      = 0x0a,
     REG_UNKNOWN = 0xFF
 } Register;
 
@@ -112,7 +120,8 @@ typedef union
 typedef enum
 {
     OT_REGISTER,
-    OT_IMMEDIATE,
+    OT_IMMEDIATE_INT,
+    OT_IMMEDIATE_STR,
     OT_SYMBOL,
     OT_ANY_SOURCE,
     OT_NONE

@@ -1,19 +1,49 @@
 // LOCAL LIBRARY
 #include "vm.h"
-#include "arena_allocator.h"
 #include "instruction_format_table.h"
 #include "lexer.h"
 #include "logger.h"
+#include "vm_utils.h"
 
 // STANDARD LIBRARY
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define VM_OPERAND_1_INDEX 0
 #define VM_OPERAND_2_INDEX 1
 #define VM_IMM_OPERAND_INDEX 2
+
+#define LSB_MASK 0xFF
+
+InstructionHandler opcode_handler[256] = {
+    [OP_PRINT_CHR] = handle_print_chr,
+    [OP_PRINT_STR] = handle_print_str,
+    [OP_MOV]       = handle_mov,
+    [OP_LOAD_ADDR] = handle_load_addr,
+    // [OP_MUL]       = handle_mul,
+    // [OP_DIV]       = handle_div,
+    // [OP_MOD]       = handle_mod,
+    // [OP_AND]       = handle_and,
+    // [OP_OR]        = handle_or,
+    // [OP_NOT]       = handle_not,
+    // [OP_CMP]       = handle_cmp,
+    // [OP_JZ]        = handle_jz,
+    // [OP_JNZ]       = handle_jnz,
+    // [OP_JEQ]       = handle_jeq,
+    // [OP_JGT]       = handle_jgt,
+    // [OP_JGE]       = handle_jge,
+    // [OP_JLT]       = handle_jlt,
+    // [OP_JLE]       = handle_jle,
+    // [OP_JMP]       = handle_jmp,
+    // [OP_CALL]      = handle_call,
+    // [OP_RET]       = handle_ret,
+    // [OP_PUSH]      = handle_push,
+    // [OP_POP]       = handle_pop,
+    // [OP_UNKNOWN]   = handle_unknown
+};
 
 /*
  *   Creates initial vm state
@@ -26,6 +56,7 @@ VMContext* vm_create()
         LOG_ERROR("Unable to allocate memory for VM State\n");
         return NULL;
     }
+    memset(ctx, 0, sizeof(VMContext));
     ctx->memory = (uint8_t*) malloc(MEM_SIZE);
     if (ctx->memory == NULL)
     {
@@ -33,9 +64,35 @@ VMContext* vm_create()
         return NULL;
     }
 
-    memset(ctx, 0, sizeof(VMContext));
     ctx->state = VM_STATE_HALTED;
     return ctx;
+}
+
+void vm_destroy(VMContext* ctx)
+{
+    printf("DEBUG: vm_destroy called.\n");
+    if (ctx)
+    {
+        if (ctx->memory)
+        {
+            free(ctx->memory);
+            printf("DEBUG: ctx->memory freed.\n");
+        }
+        free(ctx);
+        printf("DEBUG: ctx freed.\n");
+    }
+    else
+    {
+        printf("DEBUG: vm_destroy called with NULL context.\n");
+    }
+}
+
+void vm_terminate(VMContext* ctx, int8_t error_code, uint32_t pc)
+{
+    ctx->state = VM_STATE_FATAL_ERROR;
+    LOG_ERROR("FATAL ERROR %d at PC: 0x%X\n", error_code, pc);
+    vm_destroy(ctx);
+    exit(error_code);
 }
 
 bool load_bytecode(VMContext* ctx, const uint8_t* bytecode, size_t size)
@@ -47,115 +104,339 @@ bool load_bytecode(VMContext* ctx, const uint8_t* bytecode, size_t size)
     }
     memcpy(&ctx->memory[CODE_START], bytecode, size);
     ctx->pc = CODE_START;
-    ctx->sp = MEM_SIZE - 1;
+    ctx->sp = STACK_START + STACK_SIZE;
+    ctx->bp = STACK_START + STACK_SIZE;
+    ctx->hp = HEAP_START;
+
     return true;
 }
 
-uint8_t* fetch_instruction(VMContext* ctx, MemoryArena* arena)
+int8_t fetch_instruction(VMContext* ctx, uint8_t* out)
 {
     if (ctx->pc > MEMORY_LIMIT)
     {
-        LOG_ERROR("PC out of bounds\n");
-        return NULL;
+        LOG_ERROR("PC out of bounds while trying to fetch instruction\n");
+        return VM_ERR_PC_OUT_OF_BOUNDS;
     }
 
-    uint8_t* buffer = (uint8_t*) arena_alloc(arena, INSTRUCTION_SIZE * sizeof(uint8_t));
-    if (buffer == NULL)
-    {
-        LOG_ERROR("Failed to allocate instruction buffer\n");
-        return NULL;
-    }
-    memcpy(buffer, ctx->memory + ctx->pc, INSTRUCTION_SIZE);
-    return buffer;
+    memcpy(out, ctx->memory + ctx->pc, INSTRUCTION_SIZE);
+    ctx->pc += INSTRUCTION_SIZE;
+    return VM_EXIT_SUCCESS;
 }
 
-DecodedInstruction* decode_instruction(VMContext* ctx, MemoryArena* arena)
+int8_t decode_instruction(VMContext* ctx, const uint8_t* instruction, DecodedInstruction* out)
 {
+    const Opcode  opcode          = instruction[OPCODE_INDEX];
+    const uint8_t metadata        = instruction[METADATA_INDEX];
+    uint32_t      imm_addr_or_val = *(uint32_t*) &instruction[IMMEDIATE_VALUE_START];
 
-    const uint8_t* instruction = fetch_instruction(ctx, arena);
-
-    if (instruction == NULL)
+    out->opcode         = opcode;
+    out->metadata_flags = metadata;
+    const OpcodeInfo* info;
+    if ((int) opcode < NUM_OPCODES && opcode >= 0)
     {
-        LOG_ERROR("Instruction is NULL\n");
-        return NULL;
+        info = &opcode_info[opcode];
+    }
+    else
+    {
+        info = NULL;
     }
 
-    DecodedInstruction* out =
-        (DecodedInstruction*) arena_calloc(arena, 0, sizeof(DecodedInstruction));
-
-    uint8_t           opcode   = instruction[OPCODE_INDEX];
-    uint8_t           metadata = instruction[METADATA_INDEX];
-    const OpcodeInfo* info     = &opcode_info[opcode];
-    out->opcode                = (Opcode) opcode;
-    out->metadata_flags        = metadata;
-
-    for (int i = 0; i < info->operand_count; i++)
+    if (info == NULL)
     {
-        const uint8_t reg_id_ptr = instruction[i + 1];
-        switch (info->operands[i])
-        {
-        case OT_ANY_SOURCE:
-        {
-            if (metadata & META_OP2_IMM)
-            { // immediate value
-                int32_t        immediate_value;
-                const uint8_t* immediate_ptr = instruction + IMMEDIATE_VALUE_START;
-                memcpy(&immediate_value, immediate_ptr, sizeof(int32_t));
-                out->operands[i].kind            = VM_OT_IMMEDIATE;
-                out->operands[i].value.immediate = immediate_value;
-                break;
-            }
-            else
-            { // register
-                uint8_t reg_id                = reg_id_ptr;
-                out->operands[i].kind         = VM_OT_REGISTER;
-                out->operands[i].value.reg_id = reg_id;
-                break;
-            }
-        }
-        case OT_REGISTER:
-        {
-            uint8_t reg_id                = reg_id_ptr;
-            out->operands[i].kind         = VM_OT_REGISTER;
-            out->operands[i].value.reg_id = reg_id;
-            break;
-        }
-        case OT_IMMEDIATE:
-        {
-            int32_t        immediate_value;
-            const uint8_t* immediate_ptr = instruction + IMMEDIATE_VALUE_START;
-            memcpy(&immediate_value, immediate_ptr, sizeof(int32_t));
-            out->operands[i].kind            = VM_OT_IMMEDIATE;
-            out->operands[i].value.immediate = immediate_value;
-            break;
-        }
-        case OT_SYMBOL:
-        {
-            uint32_t       address_value;
-            const uint8_t* address_ptr = instruction + IMMEDIATE_VALUE_START;
-            memcpy(&address_value, address_ptr, sizeof(uint32_t));
-            out->operands[i].kind          = VM_OT_ADDRESS;
-            out->operands[i].value.address = address_value;
-            break;
-        }
-        case OT_NONE:
-        {
-            out->operands[i].kind = VM_OT_NONE;
-            break;
-        }
-        }
+        LOG_ERROR("Opcode %d does not exist\n", opcode);
+        ctx->state = VM_STATE_FATAL_ERROR;
+        return VM_ERR_OPCODE_NOT_FOUND;
     }
-    return out;
+
+    if (info->operand_count >= 1)
+    {
+        VMAddressingMode dest_mode = (VMAddressingMode) GET_DEST_MODE(out->metadata_flags);
+        out->operands[0].mode      = dest_mode;
+        uint8_t raw_id_byte_0      = instruction[OPERAND_1_INDEX];
+        populate_operand(&out->operands[0], raw_id_byte_0, imm_addr_or_val);
+    }
+    else
+    {
+        out->operands[0].mode = VM_AM_NONE;
+    }
+
+    if (info->operand_count == 2)
+    {
+        VMAddressingMode src_mode = GET_SRC_MODE(out->metadata_flags);
+        printf("DEBUG: src_mode calculated: %u\n", src_mode);
+        out->operands[1].mode = src_mode;
+        uint8_t raw_id_byte_1 = instruction[OPERAND_2_INDEX];
+        populate_operand(&out->operands[1], raw_id_byte_1, imm_addr_or_val);
+    }
+    else
+    {
+        out->operands[1].mode = VM_AM_NONE;
+    }
+    return VM_EXIT_SUCCESS;
 }
 
-void read_bytecode(VMContext* ctx)
+int8_t run_vm(VMContext* ctx)
 {
-    // Set the VM state as running
+    // VMError            error_state;
+    DecodedInstruction decoded_instruction;
+
+    uint8_t raw_instruction[INSTRUCTION_SIZE];
+    int8_t  status;
+
+    if (ctx->state != VM_STATE_HALTED)
+    {
+        LOG_WARN("VM is not in HALTED state. Starting anyway.");
+    }
+
     ctx->state = VM_STATE_RUNNING;
 
     while (ctx->state == VM_STATE_RUNNING)
     {
+        // Fetch
+        status = fetch_instruction(ctx, raw_instruction);
+        if (status != VM_EXIT_SUCCESS)
+        {
+            if (status == VM_ERR_PC_OUT_OF_BOUNDS)
+            {
+                ctx->state = VM_STATE_HALTED;
+                break;
+            }
+            vm_terminate(ctx, status, ctx->pc - INSTRUCTION_SIZE);
+        }
+
+        // Decode
+        status = decode_instruction(ctx, raw_instruction, &decoded_instruction);
+        if (status != VM_EXIT_SUCCESS)
+        {
+            vm_terminate(ctx, status, ctx->pc - INSTRUCTION_SIZE);
+        }
+
+        // Execute
+        status = execute_bytecode(ctx, &decoded_instruction);
+        if (status != VM_EXIT_SUCCESS)
+        {
+            uint32_t instruction_pc = ctx->pc - INSTRUCTION_SIZE;
+
+            if (status > VM_EXIT_SUCCESS && status <= VM_ERR_UNKNOWN)
+            {
+                vm_terminate(ctx, status, instruction_pc);
+            }
+            else if (status >= VM_ERR_STACK_OVERFLOW)
+            {
+                ctx->state = VM_STATE_SOFT_ERROR;
+                LOG_ERROR("Soft error %d at PC: 0x%X\n", status, instruction_pc);
+                return status;
+            }
+            else
+            {
+                LOG_ERROR("Unknown status code (%d) returned from execute routine", status);
+                vm_terminate(ctx, VM_ERR_UNKNOWN, instruction_pc);
+            }
+        }
     }
+    return VM_EXIT_SUCCESS;
 }
 
-// void execute_bytecode(VMContext* ctx) {}
+int8_t execute_bytecode(VMContext* ctx, DecodedInstruction* instruction)
+{
+    VMState state = ctx->state;
+    LOG_DEBUG("VM State: %d\n", state);
+    Opcode opcode = instruction->opcode;
+    LOG_DEBUG("Opcode: %d\n", opcode);
+    return VM_EXIT_SUCCESS;
+}
+
+int8_t handle_print_chr(VMContext* ctx, DecodedInstruction instruction)
+{
+    VMAddressingMode mode = instruction.operands[0].mode;
+
+    if (mode == VM_AM_REG_DIRECT)
+    {
+        uint8_t reg_id = instruction.operands[0].value.reg_id;
+        uint8_t chr    = (uint8_t) (ctx->registers[reg_id] & LSB_MASK);
+        fprintf(stdout, "%c", (char) chr);
+    }
+    else
+    {
+        return VM_ERR_ILLEGAL_OPERATION;
+    }
+
+    return VM_EXIT_SUCCESS;
+}
+
+int8_t handle_print_str(VMContext* ctx, DecodedInstruction instruction)
+{
+    VMAddressingMode mode = instruction.operands[0].mode;
+
+    if (mode == VM_AM_REG_INDIRECT)
+    {
+        uint8_t        reg_id  = instruction.operands[0].value.reg_id;
+        const uint32_t address = ctx->registers[reg_id];
+        if (address < MEM_SIZE)
+        {
+            vm_print_string(ctx, address);
+        }
+    }
+    else if (mode == VM_AM_IMM_ADDR)
+    {
+        uint32_t address = instruction.operands[0].value.address_or_value;
+        if (address < MEM_SIZE)
+        {
+            vm_print_string(ctx, address);
+        }
+    }
+    else
+    {
+        return VM_ERR_ILLEGAL_OPERATION;
+    }
+    return VM_EXIT_SUCCESS;
+}
+
+int8_t handle_mov(VMContext* ctx, DecodedInstruction instruction)
+{
+    uint8_t  dest_register_id = instruction.operands[0].value.reg_id;
+    uint32_t imm_addr_or_val  = instruction.operands[1].value.address_or_value;
+    switch (instruction.operands[1].mode)
+    {
+
+    case VM_AM_REG_DIRECT:
+    {
+        uint8_t  src_reg_id              = instruction.operands[1].value.reg_id;
+        uint32_t src_data                = ctx->registers[src_reg_id];
+        ctx->registers[dest_register_id] = src_data;
+        break;
+    }
+    case VM_AM_IMM_INT:
+    {
+        ctx->registers[dest_register_id] = imm_addr_or_val;
+        break;
+    }
+    case VM_AM_IMM_ADDR:
+    {
+        uint32_t address = imm_addr_or_val;
+        if (address > MEM_SIZE)
+        {
+            LOG_ERROR("Cannot access past the memory boundry\n");
+            return VM_ERR_MEMORY_OUT_OF_BOUNDS;
+        }
+        else
+        {
+            uint8_t* src_data_ptr = ctx->memory + address;
+            memcpy(&ctx->registers[dest_register_id], src_data_ptr, sizeof(uint32_t));
+            break;
+        }
+    }
+    case VM_AM_REG_INDIRECT:
+    {
+        uint8_t  src_reg_id = instruction.operands[1].value.reg_id;
+        uint32_t address    = ctx->registers[src_reg_id];
+        if (address > MEM_SIZE)
+        {
+            LOG_ERROR("Cannot access past the memory boundry\n");
+            return VM_ERR_MEMORY_OUT_OF_BOUNDS;
+        }
+        else
+        {
+            uint8_t* src_data_ptr = ctx->memory + address;
+            memcpy(&ctx->registers[dest_register_id], src_data_ptr, sizeof(uint32_t));
+            break;
+        }
+    }
+
+    case VM_AM_BASE_OFFSET:
+    {
+        uint8_t  src_reg_id   = instruction.operands[1].value.reg_id;
+        uint32_t base_address = ctx->registers[src_reg_id];
+        uint32_t offset       = imm_addr_or_val;
+        if (base_address >= MEM_SIZE || base_address + offset >= MEM_SIZE)
+        {
+            LOG_ERROR("Cannot access past memory boundry\n");
+            return VM_ERR_MEMORY_OUT_OF_BOUNDS;
+        }
+        else
+        {
+            uint8_t* src_data_ptr = ctx->memory + (base_address + offset);
+            memcpy(&ctx->registers[dest_register_id], src_data_ptr, sizeof(uint32_t));
+            break;
+        }
+    }
+
+    case VM_AM_PC_RELATIVE:
+        break;
+    case VM_AM_NONE:
+        break;
+    }
+
+    return VM_EXIT_SUCCESS;
+}
+
+int8_t handle_load_addr(VMContext* ctx, DecodedInstruction instruction)
+{
+    uint8_t  dest_register_id   = instruction.operands[0].value.reg_id;
+    uint32_t imm_addr_or_offset = instruction.operands[1].value.address_or_value;
+    switch (instruction.operands->mode)
+    {
+
+    case VM_AM_REG_DIRECT:
+        break;
+
+    case VM_AM_IMM_INT:
+        break;
+    case VM_AM_IMM_ADDR:
+    {
+        uint32_t address = imm_addr_or_offset;
+        if (address >= MEM_SIZE)
+        {
+            LOG_ERROR("Cannot access past memory boundry\n");
+            return VM_ERR_MEMORY_OUT_OF_BOUNDS;
+        }
+        else
+        {
+            ctx->registers[dest_register_id] = address;
+            break;
+        }
+    }
+    case VM_AM_REG_INDIRECT:
+    {
+        uint8_t  src_reg_id = instruction.operands[0].value.reg_id;
+        uint32_t address    = ctx->registers[src_reg_id];
+        if (address >= MEM_SIZE)
+        {
+            LOG_ERROR("Cannot access past memory boundry\n");
+            return VM_ERR_MEMORY_OUT_OF_BOUNDS;
+        }
+        else
+        {
+            ctx->registers[dest_register_id] = address;
+            break;
+        }
+    }
+    case VM_AM_BASE_OFFSET:
+    {
+        uint8_t  src_reg_id   = instruction.operands[1].value.reg_id;
+        uint32_t base_address = ctx->registers[src_reg_id];
+        uint32_t offset       = imm_addr_or_offset;
+        if (base_address >= MEM_SIZE || base_address + offset >= MEM_SIZE)
+        {
+            LOG_ERROR("Cannot access past memory boundry\n");
+            return VM_ERR_MEMORY_OUT_OF_BOUNDS;
+        }
+        else
+        {
+            ctx->registers[src_reg_id] = (base_address + offset);
+            break;
+        }
+    }
+    case VM_AM_PC_RELATIVE:
+    {
+        uint32_t offset                  = imm_addr_or_offset;
+        ctx->registers[dest_register_id] = ctx->pc + offset;
+        break;
+    }
+    case VM_AM_NONE:
+        break;
+    }
+
+    return VM_EXIT_SUCCESS;
+}

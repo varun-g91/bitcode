@@ -1,16 +1,19 @@
 #ifndef ARENA_ALLOCATOR_H
 #define ARENA_ALLOCATOR_H
 
+#define MAX_ARENA_SIZE (1 * 1024 * 1024) // 1 MB
 #include <stddef.h>
 #include <string.h>
 
-typedef struct {
+typedef struct
+{
     char*  buffer;
     size_t size;
     size_t offset;
 } MemoryArena;
 
-typedef struct {
+typedef struct
+{
     size_t size;
 } ArenaHeader;
 
