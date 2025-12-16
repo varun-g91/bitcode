@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "instruction_format_table.h"
 #include "arena_allocator.h"
 #include "logger.h"
 #include <ctype.h>
@@ -18,7 +19,7 @@
 const char* const OPCODES[] = {"PRINT_CHR", "PRINT_STR", "MOV",  "LOAD_ADDR", "ADD", "SUB", "MUL",
                                "DIV",       "MOD",       "AND",  "OR",        "NOT", "CMP", "JZ",
                                "JNZ",       "JEQ",       "JGT",  "JGE",       "JLT", "JLE", "JMP",
-                               "CALL",      "RET",       "PUSH", "POP"};
+                               "CALL",      "RET",       "PUSH", "POP", "HALT"};
 
 const int NUM_OPCODES = sizeof(OPCODES) / sizeof(OPCODES[0]);
 
@@ -55,11 +56,13 @@ bool isOpcode(const char* s)
     }
     return false;
 }
-Opcode getOpcodeType(const char* s)
+Opcode getOpcodeType(const char* name)
 {
-    for (int i = 0; i < NUM_OPCODES; i++)
-        if (strcmp(s, OPCODES[i]) == 0)
-            return (Opcode) i;
+    for (int i = 0; i < 256; i++) {
+        if (opcode_info[i].name && strcmp(opcode_info[i].name, name) == 0) {
+            return (Opcode)i;
+        }
+    }
     return OP_UNKNOWN;
 }
 

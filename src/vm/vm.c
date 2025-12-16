@@ -12,38 +12,31 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define VM_OPERAND_1_INDEX 0
-#define VM_OPERAND_2_INDEX 1
-#define VM_IMM_OPERAND_INDEX 2
-
-#define LSB_MASK 0xFF
-
-InstructionHandler opcode_handler[256] = {
-    [OP_PRINT_CHR] = handle_print_chr,
-    [OP_PRINT_STR] = handle_print_str,
-    [OP_MOV]       = handle_mov,
-    [OP_LOAD_ADDR] = handle_load_addr,
-    // [OP_MUL]       = handle_mul,
-    // [OP_DIV]       = handle_div,
-    // [OP_MOD]       = handle_mod,
-    // [OP_AND]       = handle_and,
-    // [OP_OR]        = handle_or,
-    // [OP_NOT]       = handle_not,
-    // [OP_CMP]       = handle_cmp,
-    // [OP_JZ]        = handle_jz,
-    // [OP_JNZ]       = handle_jnz,
-    // [OP_JEQ]       = handle_jeq,
-    // [OP_JGT]       = handle_jgt,
-    // [OP_JGE]       = handle_jge,
-    // [OP_JLT]       = handle_jlt,
-    // [OP_JLE]       = handle_jle,
-    // [OP_JMP]       = handle_jmp,
-    // [OP_CALL]      = handle_call,
-    // [OP_RET]       = handle_ret,
-    // [OP_PUSH]      = handle_push,
-    // [OP_POP]       = handle_pop,
-    // [OP_UNKNOWN]   = handle_unknown
-};
+InstructionHandler opcode_handler[256] = {[OP_PRINT_CHR] = handle_print_chr,
+                                          [OP_PRINT_STR] = handle_print_str,
+                                          [OP_MOV]       = handle_mov,
+                                          [OP_LOAD_ADDR] = handle_load_addr,
+                                          // [OP_MUL]       = handle_mul,
+                                          // [OP_DIV]       = handle_div,
+                                          // [OP_MOD]       = handle_mod,
+                                          // [OP_AND]       = handle_and,
+                                          // [OP_OR]        = handle_or,
+                                          // [OP_NOT]       = handle_not,
+                                          // [OP_CMP]       = handle_cmp,
+                                          // [OP_JZ]        = handle_jz,
+                                          // [OP_JNZ]       = handle_jnz,
+                                          // [OP_JEQ]       = handle_jeq,
+                                          // [OP_JGT]       = handle_jgt,
+                                          // [OP_JGE]       = handle_jge,
+                                          // [OP_JLT]       = handle_jlt,
+                                          // [OP_JLE]       = handle_jle,
+                                          // [OP_JMP]       = handle_jmp,
+                                          // [OP_CALL]      = handle_call,
+                                          // [OP_RET]       = handle_ret,
+                                          // [OP_PUSH]      = handle_push,
+                                          // [OP_POP]       = handle_pop,
+                                          // [OP_UNKNOWN]   = handle_unknown
+                                          [OP_HALT] = handle_halt};
 
 /*
  *   Creates initial vm state
@@ -95,20 +88,77 @@ void vm_terminate(VMContext* ctx, int8_t error_code, uint32_t pc)
     exit(error_code);
 }
 
-bool load_bytecode(VMContext* ctx, const uint8_t* bytecode, size_t size)
+int8_t load_bytecode(VMContext* ctx, const char* file_name)
 {
-    if (size > MEM_SIZE)
+    BytecodeFileHeader header;
+
+    FILE* bytecode_file = fopen(file_name, "rb");
+    if (!bytecode_file)
+    {
+        LOG_ERROR("Failed to open file %s, check if the file exists and try again.\n");
+        fclose(bytecode_file);
+        return VM_ERR_IO_READ_FAILED;
+    }
+
+    int8_t status = parse_header(&header, bytecode_file);
+    if (status != VM_EXIT_SUCCESS)
+    {
+        LOG_ERROR("Incorrect bytecode format\n");
+        fclose(bytecode_file);
+        return status;
+    }
+
+    if (header.code_len > CODE_SIZE)
     {
         LOG_ERROR("Failed to load bytecode. Size too big for our tiny VM\n");
-        return false;
+        fclose(bytecode_file);
+        return VM_ERR_INVALID_BYTECODE;
     }
-    memcpy(&ctx->memory[CODE_START], bytecode, size);
-    ctx->pc = CODE_START;
+
+    if (header.code_len == 0)
+    {
+        LOG_ERROR("Code segment cannot be empty.\n");
+        fclose(bytecode_file);
+        return VM_ERR_INVALID_BYTECODE;
+    }
+
+    if (header.version_number != BYTECODE_SUPPORTED_VERSION)
+    {
+        LOG_ERROR("Unsupported bytecode version.\n");
+        fclose(bytecode_file);
+        return VM_ERR_INVALID_BYTECODE;
+    }
+
+    if (header.data_len > DATA_SIZE)
+    {
+        LOG_ERROR("Data segment too large.\n");
+        fclose(bytecode_file);
+        return VM_ERR_INVALID_BYTECODE;
+    }
+
+    if (header.rodata_len > RODATA_SIZE)
+    {
+        LOG_ERROR("Read-Only Data segment too large.\n");
+        fclose(bytecode_file);
+        return VM_ERR_INVALID_BYTECODE;
+    }
+
+    size_t bytes_read = fread(&ctx->memory[CODE_START], 1, header.code_len, bytecode_file);
+    if (bytes_read != header.code_len)
+    {
+        LOG_ERROR("Code segments seems to be truncated.\n");
+        fclose(bytecode_file);
+        return VM_ERR_INVALID_BYTECODE;
+    }
+
+    ctx->pc = CODE_START + header.entry_point;
     ctx->sp = STACK_START + STACK_SIZE;
     ctx->bp = STACK_START + STACK_SIZE;
     ctx->hp = HEAP_START;
 
-    return true;
+    fclose(bytecode_file);
+
+    return VM_EXIT_SUCCESS;
 }
 
 int8_t fetch_instruction(VMContext* ctx, uint8_t* out)
@@ -126,14 +176,14 @@ int8_t fetch_instruction(VMContext* ctx, uint8_t* out)
 
 int8_t decode_instruction(VMContext* ctx, const uint8_t* instruction, DecodedInstruction* out)
 {
-    const Opcode  opcode          = instruction[OPCODE_INDEX];
+    const Opcode  opcode          = instruction[0];
     const uint8_t metadata        = instruction[METADATA_INDEX];
     uint32_t      imm_addr_or_val = *(uint32_t*) &instruction[IMMEDIATE_VALUE_START];
 
     out->opcode         = opcode;
     out->metadata_flags = metadata;
     const OpcodeInfo* info;
-    if ((int) opcode < NUM_OPCODES && opcode >= 0)
+    if (opcode_info[opcode].name != NULL)
     {
         info = &opcode_info[opcode];
     }
@@ -176,7 +226,7 @@ int8_t decode_instruction(VMContext* ctx, const uint8_t* instruction, DecodedIns
     return VM_EXIT_SUCCESS;
 }
 
-int8_t run_vm(VMContext* ctx)
+int8_t run_vm(VMContext* ctx, const char* file_name)
 {
     // VMError            error_state;
     DecodedInstruction decoded_instruction;
@@ -190,7 +240,12 @@ int8_t run_vm(VMContext* ctx)
     }
 
     ctx->state = VM_STATE_RUNNING;
-
+    status     = load_bytecode(ctx, file_name);
+    if (status != VM_EXIT_SUCCESS)
+    {
+        LOG_ERROR("Error %d while loading bytecode\n", status);
+        vm_terminate(ctx, status, ctx->pc - INSTRUCTION_SIZE);
+    }
     while (ctx->state == VM_STATE_RUNNING)
     {
         // Fetch
@@ -244,11 +299,18 @@ int8_t execute_bytecode(VMContext* ctx, DecodedInstruction* instruction)
     LOG_DEBUG("VM State: %d\n", state);
     Opcode opcode = instruction->opcode;
     LOG_DEBUG("Opcode: %d\n", opcode);
+    int8_t status = opcode_handler[opcode](ctx, *instruction);
+    if (status != VM_EXIT_SUCCESS)
+    {
+        LOG_ERROR("VM exited with error code %d\n", status);
+        return status;
+    }
     return VM_EXIT_SUCCESS;
 }
 
 int8_t handle_print_chr(VMContext* ctx, DecodedInstruction instruction)
 {
+    LOG_DEBUG("handle_print_chr called!\n");
     VMAddressingMode mode = instruction.operands[0].mode;
 
     if (mode == VM_AM_REG_DIRECT)
@@ -438,5 +500,15 @@ int8_t handle_load_addr(VMContext* ctx, DecodedInstruction instruction)
         break;
     }
 
+    return VM_EXIT_SUCCESS;
+}
+
+int8_t handle_halt(VMContext* ctx, DecodedInstruction instruction)
+{
+    if (instruction.opcode == OP_HALT && ctx->state != VM_STATE_HALTED)
+    {
+        ctx->state = VM_STATE_HALTED;
+        return VM_EXIT_SUCCESS;
+    }
     return VM_EXIT_SUCCESS;
 }

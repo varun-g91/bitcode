@@ -69,6 +69,7 @@ typedef enum
     // Stack
     OP_PUSH = 0x18,
     OP_POP  = 0x19,
+    OP_HALT = 0x20,
     // Unknown
     OP_UNKNOWN = 0xFF
 } Opcode;

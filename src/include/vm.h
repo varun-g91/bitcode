@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 // TOTAL MEMORY = 5 MB
-#define MEM_SIZE (5 * 1024 * 1024)
+#define MEM_SIZE 0x540000
 
 // ---- SEGMENTS ----
 
@@ -51,6 +51,13 @@
 
 #define GET_GLOBAL_FLAG(metadata_byte) ((metadata_byte >> 7) & 0b1)
 
+#define VM_OPERAND_1_INDEX 0
+#define VM_OPERAND_2_INDEX 1
+#define VM_IMM_OPERAND_INDEX 2
+#define LSB_MASK 0xFF
+#define BYTECODE_HEADER_SIZE 18
+#define BYTECODE_MAGIC 0x564D4259
+#define BYTECODE_SUPPORTED_VERSION 1
 // types
 typedef enum
 {
@@ -163,6 +170,16 @@ typedef struct
     } value;
 } ResolvedValue;
 
+typedef struct
+{
+    uint32_t magic_number;
+    uint16_t version_number;
+    uint32_t code_len;
+    uint32_t entry_point;
+    uint32_t rodata_len;
+    uint32_t data_len;
+} BytecodeFileHeader;
+
 int8_t handle_print_chr(VMContext*, DecodedInstruction);
 int8_t handle_print_str(VMContext*, DecodedInstruction);
 int8_t handle_mov(VMContext*, DecodedInstruction);
@@ -187,17 +204,17 @@ int8_t handle_load_addr(VMContext*, DecodedInstruction);
 // int8_t handle_ret(VMContext*, DecodedInstruction);
 // int8_t handle_push(VMContext*, DecodedInstruction);
 // int8_t handle_pop(VMContext*, DecodedInstruction);
-//
+int8_t handle_halt(VMContext*, DecodedInstruction);
 typedef int8_t (*InstructionHandler)(VMContext*, DecodedInstruction);
 
 extern InstructionHandler opcode_handler[256];
 // functions
 VMContext* vm_create();
 void       vm_destroy(VMContext*);
-bool       load_bytecode(VMContext*, const uint8_t*, size_t);
+int8_t     load_bytecode(VMContext*, const char*);
 int8_t     fetch_instruction(VMContext*, uint8_t*);
 int8_t     decode_instruction(VMContext*, const uint8_t*, DecodedInstruction*);
-int8_t     run_vm(VMContext*);
+int8_t     run_vm(VMContext*, const char*);
 int8_t     execute_bytecode(VMContext*, DecodedInstruction*);
 uint32_t   vm_allocate_string(VMContext*, const char*);
 void       set_vm_error_state(VMContext*, VMError*, int8_t);

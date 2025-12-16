@@ -39,5 +39,7 @@ const OpcodeInfo opcode_info[256] = {
     [OP_PUSH] = {"PUSH", 1, {OT_REGISTER, OT_NONE}},
     [OP_POP]  = {"POP", 1, {OT_REGISTER, OT_NONE}},
 
+    [OP_HALT] = {"HALT", 0, {OT_NONE, OT_NONE}},
+
     // --- Unknown ---
     [OP_UNKNOWN] = {"UNKNOWN", 0, {OT_NONE, OT_NONE}}};

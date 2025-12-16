@@ -1,6 +1,7 @@
 #include "vm_utils.h"
 #include "logger.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 uint32_t vm_allocate_string(VMContext* ctx, const char* host_string)
@@ -66,4 +67,70 @@ void vm_print_string(VMContext* ctx, uint32_t address)
     {
         LOG_WARN("Exited due to pointer crossing memory boundry\n");
     }
+}
+
+int8_t read_header_u16(FILE* f, uint16_t* out)
+{
+    uint8_t b[2];
+    if (fread(b, 1, 2, f) != 2)
+    {
+        return VM_ERR_INVALID_BYTECODE;
+    }
+    *out = (uint16_t) b[0] | ((uint16_t) b[1] << 8);
+    return VM_EXIT_SUCCESS;
+}
+
+int8_t read_header_u32(FILE* f, uint32_t* out)
+{
+    uint8_t b[4];
+    if (fread(b, 1, 4, f) != 4)
+    {
+        return VM_ERR_INVALID_BYTECODE;
+    }
+    *out = (uint32_t) b[0] | ((uint32_t) b[1] << 8) | ((uint32_t) b[2] << 16) |
+           ((uint32_t) b[3] << 24);
+
+    return VM_EXIT_SUCCESS;
+}
+
+int8_t parse_header(BytecodeFileHeader* out, FILE* f)
+{
+    int8_t status;
+
+    status = read_header_u32(f, &out->magic_number);
+    if (status == VM_ERR_INVALID_BYTECODE)
+    {
+        return status;
+    }
+
+    status = read_header_u16(f, &out->version_number);
+    if (status == VM_ERR_INVALID_BYTECODE)
+    {
+        return status;
+    }
+
+    status = read_header_u32(f, &out->code_len);
+    if (status == VM_ERR_INVALID_BYTECODE)
+    {
+        return status;
+    }
+
+    status = read_header_u32(f, &out->entry_point);
+    if (status == VM_ERR_INVALID_BYTECODE)
+    {
+        return status;
+    }
+    status = read_header_u32(f, &out->rodata_len);
+    if (status == VM_ERR_INVALID_BYTECODE)
+    {
+        return status;
+    }
+
+    status = read_header_u32(f, &out->data_len);
+    if (status == VM_ERR_INVALID_BYTECODE)
+    {
+        return status;
+    }
+
+    return VM_EXIT_SUCCESS;
 }
