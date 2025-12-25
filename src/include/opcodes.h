@@ -1,11 +1,17 @@
 
 #ifndef OPCODES_H
 #define OPCODES_H
-
-#include "lexer.h"
+#include "parser.h"
 #include <stdint.h>
 
-static void init_opcode_table();
-Opcode      opcode_lookup(uint8_t);
+typedef struct
+{
+    char*   opcode_name;
+    uint8_t opcode_id;
+} OpcodeEntry;
+
+extern const OpcodeEntry opcode_table[256];
+
+Opcode opcode_lookup(const char*);
 
 #endif

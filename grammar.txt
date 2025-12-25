@@ -1,0 +1,5 @@
+program     -> line* EOF
+line        -> [label] [instruction | directive]
+label       -> IDENTIFIER ":"
+instruction -> IDENTIFIER operand ("," operand)*
+operand     -> REGISTER | LITERAL | IDENTIFIER

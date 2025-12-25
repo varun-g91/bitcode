@@ -4,8 +4,10 @@
 #include "logger.h"
 #include <stdlib.h>
 
-Token peek(TokenStream* ts) {
-    if (ts->current == NULL) {
+Token peek(TokenStream* ts)
+{
+    if (ts->current == NULL)
+    {
         Token tmp = {0};
         LOG_ERROR("Current token is null\n");
         return tmp;
@@ -14,8 +16,10 @@ Token peek(TokenStream* ts) {
     return token;
 }
 
-Token consume(TokenStream* ts) {
-    if (ts->current == NULL) {
+Token consume(TokenStream* ts)
+{
+    if (ts->current == NULL)
+    {
         LOG_ERROR("Current token null\n");
         Token tmp = {0};
         return tmp;
@@ -26,22 +30,18 @@ Token consume(TokenStream* ts) {
     return consumed_token;
 }
 
-bool is_matching(TokenStream* ts, Opcode expected_opcode) {
-    Opcode current_op = ts->current->token.value.opcode;
-    if (current_op != expected_opcode) {
-        return false;
-    }
-    return true;
-}
-
-TokenStream* build_token_stream(MemoryArena* arena, Token* all_tokens, int total_token_count) {
-    if (all_tokens == NULL || total_token_count <= 0) {
+TokenStream* build_token_stream(MemoryArena* arena, Token* all_tokens, int total_token_count)
+{
+    if (all_tokens == NULL || total_token_count <= 0)
+    {
+        LOG_DEBUG("TOKEN COUNT 0!");
         return NULL;
     }
 
     // Allocate the main stream structure in the arena
-    TokenStream* stream = (TokenStream*)arena_alloc(arena, sizeof(TokenStream));
-    if (stream == NULL) {
+    TokenStream* stream = arena_alloc(arena, sizeof(TokenStream));
+    if (stream == NULL)
+    {
         LOG_ERROR("Failed to allocate memory for token stream\n");
         return NULL;
     }
@@ -50,11 +50,12 @@ TokenStream* build_token_stream(MemoryArena* arena, Token* all_tokens, int total
     TokenNode* current_node = NULL;
 
     // Start loop from the beginning of the tokens array
-    for (int i = 0; i < total_token_count; i++) {
-        TokenNode* new_node = (TokenNode*)arena_alloc(arena, sizeof(TokenNode));
-        if (new_node == NULL) {
+    for (int i = 0; i < total_token_count; i++)
+    {
+        TokenNode* new_node = (TokenNode*) arena_alloc(arena, sizeof(TokenNode));
+        if (new_node == NULL)
+        {
             LOG_ERROR("Failed to allocate memory for token stream node\n");
-            // NOTE: No cleanup needed here, relies on final arena_free
             return NULL;
         }
 
@@ -62,14 +63,23 @@ TokenStream* build_token_stream(MemoryArena* arena, Token* all_tokens, int total
         new_node->token = all_tokens[i];
         new_node->next  = NULL;
 
-        if (i == 0) {
+        if (i == 0)
+        {
             // First node
             head_node    = new_node;
             current_node = new_node;
-        } else {
+        }
+        else
+        {
             // Subsequent nodes
             current_node->next = new_node;
             current_node       = new_node;
+        }
+
+        if (i >= total_token_count)
+        {
+            LOG_DEBUG("END REACHED! TERMINATING TOKEN STREAM");
+            current_node = NULL;
         }
     }
 

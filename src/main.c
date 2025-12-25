@@ -1,6 +1,8 @@
 #include "arena_allocator.h"
 #include "lexer.h"
 #include "logger.h"
+#include "parser.h"
+#include "token_stream.h"
 #include "vm.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,20 +42,22 @@ int main(int argc, char* argv[])
             }
         }
     }
-    if (strcmp(argv[1], "lexer") == 0)
+    int          total_token_count;
+    TokenStream* stream;
+    if (strcmp(argv[1], "asm") == 0)
     {
         if (strcmp(argv[2], "run") == 0)
         {
             MemoryArena arena;
-            arena_init(&arena, MAX_ARENA_SIZE);
+            arena_init(&arena, 2 * MAX_ARENA_SIZE);
 
             LOG_INFO("Lexer started with %d arguments.", argc - 1); // Replaced fprintf(stderr, ...)
             char* input_file_path = argv[3];
             LOG_INFO("Input file: %s", input_file_path); // Replaced fprintf(stderr, ...)
             FILE* input_file = fopen(input_file_path, "r");
 
-            int          total_token_count = 0;
-            TokenVector* token_vector      = run_lexer(&arena, input_file, &total_token_count);
+            total_token_count         = 0;
+            TokenVector* token_vector = run_lexer(&arena, input_file, &total_token_count);
             if (token_vector->items == NULL)
             {
                 LOG_ERROR("Lexing failed.\n");
@@ -63,29 +67,24 @@ int main(int argc, char* argv[])
             }
             Token* all_tokens = token_vector->items;
             LOG_INFO("Total tokens produced: %d", total_token_count);
-            fprintf(stderr, "--- Starting Token Debug Loop ---\n");
-            LOG_DEBUG("total_token_count: %d", total_token_count);
-            for (int i = 0; i < total_token_count; i++)
-            {
-                // Use the debug printing logic you developed
-                if (all_tokens[i].kind == TOK_LITERAL)
-                {
-                    LOG_DEBUG("Token #%d value=%lld: Kind=%d, Lexeme=%s", i,
-                              all_tokens[i].value.operand.value.literal.value.longValue,
-                              all_tokens[i].kind, all_tokens[i].lexeme);
-                }
-                else
-                {
-                    LOG_DEBUG("Token #%d value=%d: Kind=%d, Lexeme=%s", i,
-                              all_tokens[i].value.opcode, all_tokens[i].kind, all_tokens[i].lexeme);
-                }
-            }
-            arena_free(&arena);
+
+            stream = build_token_stream(&arena, all_tokens, total_token_count);
+
             fclose(input_file);
+
+            Program program = {0};
+            program.capcity = INITITAL_LINE_CAPACITY;
+
+            int8_t status = run_parser(&arena, stream, &program);
+            if (status != 0)
+            {
+                LOG_ERROR("Error while running parser: %d");
+                return status;
+            }
+
+            arena_free(&arena);
         }
     }
-
-    // TokenStream* stream = build_token_stream(&arena, all_tokens, total_token_count);
 
     return EXIT_SUCCESS;
 }

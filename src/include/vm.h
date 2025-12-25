@@ -1,7 +1,7 @@
 #ifndef VM_H
 #define VM_H
 
-#include "lexer.h"
+#include "parser.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

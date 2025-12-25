@@ -4,17 +4,20 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-SymbolTable* symbol_table_init() {
+SymbolTable* symbol_table_init()
+{
     SymbolTable* symbol_table = NULL;
     return symbol_table;
 }
 
 bool symbol_table_add(MemoryArena* arena, SymbolTable** symbol_table, const char* key,
-                      uint32_t value) {
+                      uint32_t value)
+{
     SymbolTable* st = NULL;
 
     HASH_FIND_STR(*symbol_table, key, st);
-    if (st != NULL) {
+    if (st != NULL)
+    {
         return false;
     }
 
@@ -27,7 +30,8 @@ bool symbol_table_add(MemoryArena* arena, SymbolTable** symbol_table, const char
     return true;
 }
 
-uint32_t symbol_table_get(SymbolTable* symbol_table, const char* symbol) {
+uint32_t symbol_table_get(SymbolTable* symbol_table, const char* symbol)
+{
     SymbolTable* st = NULL;
     HASH_FIND_STR(symbol_table, symbol, st);
     return st->address;

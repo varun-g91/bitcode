@@ -1,5 +1,7 @@
 #include "instruction_format_table.h"
 
+#include "parser.h"
+
 const OpcodeInfo opcode_info[256] = {
     // Opcode        | .name      | .operand_count | .operands[0] (Dest/Jump) | .operands[1]
     // (Source) | .operands[2]

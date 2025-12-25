@@ -12,16 +12,13 @@
 // Token categories
 typedef enum
 {
-    TOK_OPCODE,
     TOK_REGISTER,
-    TOK_NUMBER,
     TOK_IDENTIFIER,
-    TOK_LABEL_DEF,
-    TOK_SYMBOL,
     TOK_SEPARATOR,
     TOK_DIRECTIVE,
     TOK_UNKNOWN,
     TOK_LITERAL,
+    TOK_EOF,
 } TokenKind;
 
 // For separators like ',', '\n', etc.
@@ -29,50 +26,9 @@ typedef enum
 {
     SEP_COMMA,
     SEP_EOL,
-    SEP_EOF,
 } SeparatorKind;
 
 // Opcodes and registers
-
-typedef enum
-{
-    // I/O
-    OP_PRINT_CHR = 0x00,
-    OP_PRINT_STR = 0x01,
-    // Data transfer
-    OP_MOV       = 0x02,
-    OP_LOAD_ADDR = 0x03, // LOAD_ADDR R1, my_string;
-
-    // Arithmatic
-    OP_ADD = 0x04,
-    OP_SUB = 0x05,
-    OP_MUL = 0x07,
-    OP_DIV = 0x08,
-    OP_MOD = 0x09,
-    // Logical
-    OP_AND = 0x0a,
-    OP_OR  = 0x0b,
-    OP_NOT = 0x0C,
-    // Control flow
-    OP_CMP = 0x0D,
-    OP_JZ  = 0x0E,
-    OP_JNZ = 0x0F,
-    OP_JEQ = 0x10,
-    OP_JGT = 0x11,
-    OP_JGE = 0x12,
-    OP_JLT = 0x13,
-    OP_JLE = 0x14,
-    OP_JMP = 0x15,
-    // Procedure
-    OP_CALL = 0x16,
-    OP_RET  = 0x17,
-    // Stack
-    OP_PUSH = 0x18,
-    OP_POP  = 0x19,
-    OP_HALT = 0x20,
-    // Unknown
-    OP_UNKNOWN = 0xFF
-} Opcode;
 
 typedef enum
 {
@@ -92,16 +48,16 @@ typedef enum
 
 typedef enum
 {
-    LIT_LONG_LONG,
+    LIT_INTEGER,
     LIT_CHAR,
-    LIT_STR,
+    LIT_STRING,
 } LiteralType;
 
 typedef union
 {
-    long long longValue;
-    char      charValue;
-    char*     stringValue;
+    long  longValue;
+    char  charValue;
+    char* stringValue;
 } LiteralValue;
 
 typedef struct
@@ -122,6 +78,7 @@ typedef enum
 {
     OT_REGISTER,
     OT_IMMEDIATE_INT,
+    OT_IMMEDIATE_CHR,
     OT_IMMEDIATE_STR,
     OT_SYMBOL,
     OT_ANY_SOURCE,
@@ -137,20 +94,23 @@ typedef struct
 // Directives
 typedef enum
 {
-    DIRECT_START,
-    DIRECT_DATA,
-    DIRECT_RODATA,
-    DIRECT_UNKNOWN
+    DIRECTIVE_START  = 0x00,
+    DIRECTIVE_DATA   = 0x01,
+    DIRECTIVE_RODATA = 0x02,
+    DIRECTIVE_GLOBAL = 0x03,
+    DIRECT_UNKNOWN   = 0xFF
 } Directive;
+
+typedef char* Ientifier;
 
 // Union to hold data for different token kinds
 typedef union
 {
-    Opcode        opcode;
-    Operand       operand;
+    Ientifier     identifier;
+    Literal       literal;
     Directive     directive;
-    char*         label_def;
     SeparatorKind sep;
+    Register      reg;
 } TokenValue;
 
 // Main token structurestrtol(lexeme, NULL, 10);
@@ -158,7 +118,7 @@ typedef struct
 {
     TokenKind  kind;
     TokenValue value;
-    char*      lexeme; // original text, optional but useful for debugging
+    char*      lexeme;
 } Token;
 // ------------------------
 // OPCODE / REGISTER TABLES
@@ -176,9 +136,7 @@ extern const int         NUM_OPCODES;
 extern const char* const REGISTERS[];
 extern const int         NUM_REGISTERS;
 
-Opcode       getOpcodeType(const char*);
 Register     getRegisterType(const char*);
-bool         isOpcode(const char*);
 bool         isRegister(const char*);
 char**       getLexemesInLine(MemoryArena*, char*, int*);
 Token*       lexer(MemoryArena*, char**, int);

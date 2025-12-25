@@ -1,10 +1,11 @@
 #include "lexer.h"
-#include "instruction_format_table.h"
 #include "arena_allocator.h"
+#include "instruction_format_table.h"
 #include "logger.h"
 #include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +20,7 @@
 const char* const OPCODES[] = {"PRINT_CHR", "PRINT_STR", "MOV",  "LOAD_ADDR", "ADD", "SUB", "MUL",
                                "DIV",       "MOD",       "AND",  "OR",        "NOT", "CMP", "JZ",
                                "JNZ",       "JEQ",       "JGT",  "JGE",       "JLT", "JLE", "JMP",
-                               "CALL",      "RET",       "PUSH", "POP", "HALT"};
+                               "CALL",      "RET",       "PUSH", "POP",       "HALT"};
 
 const int NUM_OPCODES = sizeof(OPCODES) / sizeof(OPCODES[0]);
 
@@ -27,7 +28,7 @@ const char* const REGISTERS[] = {"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7",
 
 const int NUM_REGISTERS = sizeof(REGISTERS) / sizeof(REGISTERS[0]);
 
-const char* const DIRECTIVES[] = {".START", ".DATA", ".RODATA"};
+const char* const DIRECTIVES[] = {".START", ".DATA", ".RODATA", ".GLOBAL"};
 
 const int NUM_DIRECTIVES = sizeof(DIRECTIVES) / sizeof(DIRECTIVES[0]);
 
@@ -56,15 +57,6 @@ bool isOpcode(const char* s)
     }
     return false;
 }
-Opcode getOpcodeType(const char* name)
-{
-    for (int i = 0; i < 256; i++) {
-        if (opcode_info[i].name && strcmp(opcode_info[i].name, name) == 0) {
-            return (Opcode)i;
-        }
-    }
-    return OP_UNKNOWN;
-}
 
 Register getRegisterType(const char* s)
 {
@@ -90,26 +82,9 @@ Directive getDirectiveType(const char* s)
     return DIRECT_UNKNOWN;
 }
 
-bool isNumber(const char* s)
-{
-    for (int i = 0; s[i]; i++)
-        if (s[i] < '0' || s[i] > '9')
-            return false;
-    return true;
-}
-
 // ------------------------
 // LEXER
 // ------------------------
-
-Token makeToken(MemoryArena* arena, TokenKind kind, TokenValue value, const char* lexeme)
-{
-    Token t;
-    t.kind   = kind;
-    t.value  = value;
-    t.lexeme = arena_strdup(arena, lexeme);
-    return t;
-}
 
 char** getLexemesInLine(MemoryArena* arena, char* line, int* count)
 {
@@ -140,7 +115,7 @@ char** getLexemesInLine(MemoryArena* arena, char* line, int* count)
         // 3. Handle Single-Character Separators (Comma and Newline)
         if (*current == ',' || *current == '\n')
         {
-            if (*count < 100)
+            if (*count <= 10)
             {
                 // Allocate 2 bytes (1 for char, 1 for null terminator)
                 lexemes[*count]    = (char*) arena_alloc(arena, 2);
@@ -150,7 +125,7 @@ char** getLexemesInLine(MemoryArena* arena, char* line, int* count)
             }
             else
             {
-                LOG_ERROR("Exceeded maximum number of 100 lexemes per line.");
+                LOG_ERROR("Exceeded maximum number of 10 lexemes per line.");
                 break;
             }
             current++;
@@ -188,6 +163,9 @@ char** getLexemesInLine(MemoryArena* arena, char* line, int* count)
     return lexemes;
 }
 
+bool is_ident_start(char c) { return isalpha((unsigned char) c) || c == '_'; }
+bool is_ident_char(char c) { return isalnum((unsigned char) c) || c == '_'; }
+
 Token* lexer(MemoryArena* arena, char** line, int count)
 {
     // Use calloc to initialize Token array to zero (including TokenValue union)
@@ -205,19 +183,25 @@ Token* lexer(MemoryArena* arena, char** line, int count)
 
         if (*lexeme)
         {
-            LOG_DEBUG("Processing lexeme: %s", lexeme);
 
-            if (isOpcode(lexeme))
+            if (is_ident_start(*lexeme) && *lexeme != 'R' && !isdigit(*(lexeme + 1)) &&
+                *lexeme != '.')
             {
-                token.kind         = TOK_OPCODE;
-                token.value.opcode = getOpcodeType(lexeme);
-                token.lexeme       = lexeme;
+                char* start = lexeme;
+                lexeme++;
+                while (is_ident_char(*lexeme))
+                {
+                    lexeme++;
+                }
+                token.kind             = TOK_IDENTIFIER;
+                token.lexeme           = start;
+                token.value.identifier = start;
             }
             else if (isRegister(lexeme))
             {
-                token.kind                    = TOK_REGISTER;
-                token.value.operand.value.reg = getRegisterType(lexeme);
-                token.lexeme                  = lexeme;
+                token.kind      = TOK_REGISTER;
+                token.value.reg = getRegisterType(lexeme);
+                token.lexeme    = lexeme;
             }
             else
             {
@@ -235,27 +219,37 @@ Token* lexer(MemoryArena* arena, char** line, int count)
                     (lexeme[0] == '0' && lexeme[1] == 'x' && isdigit((unsigned char) lexeme[2]));
                 if (isdigit((unsigned char) lexeme[0]) || is_negetive_int_literal || is_hex_literal)
                 {
+
                     token.kind = TOK_LITERAL;
                     // strtoll correctly handles signed long long conversion
                     if (is_hex_literal)
                     {
-                        token.value.operand.value.literal.value.longValue =
-                            strtoll((const char*) (lexeme), NULL, 16);
+                        long value = strtoll((const char*) lexeme, NULL, 16);
+                        if (value > UINT32_MAX)
+                        {
+                            LOG_ERROR("Literal longer than 32 bits is not supported.");
+                            value = UINT32_MAX;
+                        }
+                        token.value.literal.value.longValue = value;
                     }
                     else
                     {
-                        token.value.operand.value.literal.value.longValue =
-                            strtoll((const char*) (lexeme), NULL, 10);
+                        long long value = strtoll((const char*) lexeme, NULL, 16);
+                        if (value > UINT32_MAX)
+                        {
+                            LOG_ERROR("Literal longer than 32 bits is not supported.");
+                            value = UINT32_MAX;
+                        }
+                        token.value.literal.value.longValue = value;
                     }
-                    printf("long value: %lld\n", token.value.operand.value.literal.value.longValue);
                     token.lexeme = lexeme;
                 }
                 // Character Literal (e.g., 'a')
                 else if (lexeme[0] == '\'' && lexeme[2] == '\'' && strlen(lexeme) == 3)
                 {
-                    token.kind                                        = TOK_LITERAL;
-                    token.value.operand.value.literal.value.charValue = lexeme[1];
-                    token.lexeme                                      = lexeme;
+                    token.kind                          = TOK_LITERAL;
+                    token.value.literal.value.charValue = lexeme[1];
+                    token.lexeme                        = lexeme;
                 }
                 // String Literal (e.g., "hello")
                 else if (lexeme[0] == '\"' && lexeme[strlen(lexeme) - 1] == '\"' &&
@@ -265,13 +259,11 @@ Token* lexer(MemoryArena* arena, char** line, int count)
                     size_t str_len = strlen(lexeme) - 2;
 
                     // Allocate space for the string contents (excluding quotes) in the Arena
-                    token.value.operand.value.literal.value.stringValue =
-                        (char*) arena_alloc(arena, str_len + 1);
+                    token.value.literal.value.stringValue = (char*) arena_alloc(arena, str_len + 1);
                     // Copy content from lexeme[1] for str_len characters
-                    strncpy(token.value.operand.value.literal.value.stringValue, lexeme + 1,
-                            str_len);
-                    token.value.operand.value.literal.value.stringValue[str_len] = '\0';
-                    token.lexeme                                                 = lexeme;
+                    strncpy(token.value.literal.value.stringValue, lexeme + 1, str_len);
+                    token.value.literal.value.stringValue[str_len] = '\0';
+                    token.lexeme                                   = lexeme;
                 }
                 // Separator (Comma)
                 else if (strcmp(lexeme, ",") == 0)
@@ -287,12 +279,6 @@ Token* lexer(MemoryArena* arena, char** line, int count)
                     token.value.sep = SEP_EOL;
                     token.lexeme    = lexeme;
                 }
-                // Label (ends with ':')
-                else if (lexeme[strlen(lexeme) - 1] == ':')
-                {
-                    token.kind   = TOK_LABEL_DEF;
-                    token.lexeme = lexeme;
-                }
                 // Directives (starts with '.')
                 else if (lexeme[0] == '.' && lexeme[1] != '\0' && strlen(lexeme) > 3)
                 {
@@ -300,12 +286,6 @@ Token* lexer(MemoryArena* arena, char** line, int count)
                     token.lexeme          = lexeme;
                     Directive directive   = getDirectiveType(lexeme);
                     token.value.directive = directive;
-                }
-                // Symbol/Identifier (Catch-all)
-                else
-                {
-                    token.kind   = TOK_SYMBOL;
-                    token.lexeme = lexeme;
                 }
             }
         }
@@ -332,17 +312,18 @@ TokenVector* run_lexer(MemoryArena* arena, FILE* input_file, int* total_count)
 
     const size_t bufferSize = 1024;
     char         buffer[bufferSize];
-    int          line_number = 0;
     while (fgets(buffer, bufferSize, input_file) != NULL)
     {
         char** line       = NULL;
         int    numLexemes = 0;
 
-        LOG_DEBUG("Reading line %d: %s", line_number, buffer); // Replaced fprintf(stderr, ...)
-
         line                  = getLexemesInLine(arena, buffer, &numLexemes);
         Token* tokens_in_line = lexer(arena, line, numLexemes);
 
+        if (tokens_in_line == NULL)
+        {
+            LOG_ERROR("Lexer error, lexer returned NULL!");
+        }
         for (int i = 0; i < numLexemes; i++)
         {
             if (*total_count >= token_vector->capacity)
@@ -361,7 +342,6 @@ TokenVector* run_lexer(MemoryArena* arena, FILE* input_file, int* total_count)
             token_vector->items[*total_count] = tokens_in_line[i];
             *total_count += 1;
         }
-        line_number++;
     }
     if (*total_count >= token_vector->capacity)
     {
@@ -376,8 +356,7 @@ TokenVector* run_lexer(MemoryArena* arena, FILE* input_file, int* total_count)
         }
     }
     Token token_eof                   = {0};
-    token_eof.kind                    = TOK_SEPARATOR;
-    token_eof.value.sep               = SEP_EOF;
+    token_eof.kind                    = TOK_EOF;
     token_eof.lexeme                  = arena_strdup(arena, "EOF");
     token_vector->items[*total_count] = token_eof;
     *total_count += 1;

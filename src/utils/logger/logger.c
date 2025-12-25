@@ -5,15 +5,17 @@
 // Set your default level here. E.g., INFO shows errors, warnings, and general info.
 LogLevel g_compiler_log_level = LOG_LEVEL_DEBUG;
 
-void log_message(LogLevel level, const char* file, int line, const char* func, const char* fmt,
-                 ...) {
-    if (level > g_compiler_log_level) {
+void log_message(LogLevel level, const char* file, int line, const char* func, const char* fmt, ...)
+{
+    if (level > g_compiler_log_level)
+    {
         return;
     }
 
     // Determine the level string
     const char* level_str;
-    switch (level) {
+    switch (level)
+    {
     case LOG_LEVEL_ERROR:
         level_str = "ERROR";
         break;
@@ -29,6 +31,8 @@ void log_message(LogLevel level, const char* file, int line, const char* func, c
     case LOG_LEVEL_TRACE:
         level_str = "TRACE";
         break;
+    case LOG_LEVEL_NONE:
+        return;
     default:
         return;
     }

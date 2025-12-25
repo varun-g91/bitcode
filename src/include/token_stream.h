@@ -4,19 +4,20 @@
 #include "arena_allocator.h"
 #include "lexer.h"
 
-typedef struct _TokenNode {
+typedef struct _TokenNode
+{
     Token              token;
     struct _TokenNode* next;
 } TokenNode;
 
-typedef struct {
+typedef struct
+{
     TokenNode* head;
     TokenNode* current;
 } TokenStream;
 
 Token        peek(TokenStream*);
 Token        consume(TokenStream*);
-bool         is_matching(TokenStream*, Opcode);
 TokenStream* build_token_stream(MemoryArena*, Token*, int);
 
 #endif

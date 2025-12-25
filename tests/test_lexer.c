@@ -24,16 +24,16 @@ void test_lexer_opcode_and_register_tokens(void)
 
     Token* tokens = lexer(&test_suite_arena, input, count);
 
-    TEST_ASSERT_EQUAL_INT(TOK_OPCODE, tokens[0].kind);
-    TEST_ASSERT_EQUAL_HEX(mov_id, tokens[0].value.opcode);
+    TEST_ASSERT_EQUAL_INT(TOK_IDENTIFIER, tokens[0].kind);
+    TEST_ASSERT_EQUAL_STRING("MOV", tokens[0].value.identifier);
 
     TEST_ASSERT_EQUAL_INT(TOK_REGISTER, tokens[1].kind);
-    TEST_ASSERT_EQUAL_HEX(reg_r1_id, tokens[1].value.operand.value.reg);
+    TEST_ASSERT_EQUAL_HEX(reg_r1_id, tokens[1].value.reg);
 
     TEST_ASSERT_EQUAL_INT(TOK_SEPARATOR, tokens[2].kind);
 
     TEST_ASSERT_EQUAL_INT(TOK_REGISTER, tokens[3].kind);
-    TEST_ASSERT_EQUAL_HEX(reg_r2_id, tokens[3].value.operand.value.reg);
+    TEST_ASSERT_EQUAL_HEX(reg_r2_id, tokens[3].value.reg);
 }
 
 void test_lexer_immediate_and_symbol_tokens(void)
@@ -44,10 +44,10 @@ void test_lexer_immediate_and_symbol_tokens(void)
 
     Token* tokens = lexer(&test_suite_arena, input, count);
 
-    TEST_ASSERT_EQUAL_INT(TOK_OPCODE, tokens[0].kind);
+    TEST_ASSERT_EQUAL_INT(TOK_IDENTIFIER, tokens[0].kind);
 
     TEST_ASSERT_EQUAL_INT(TOK_LITERAL, tokens[1].kind);
-    TEST_ASSERT_EQUAL_HEX32(0x12345678, tokens[1].value.operand.value.literal.value.longValue);
+    TEST_ASSERT_EQUAL_HEX32(0x12345678, tokens[1].value.literal.value.longValue);
 }
 
 void run_all_lexer_tests(void)

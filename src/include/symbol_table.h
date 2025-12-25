@@ -2,7 +2,8 @@
 #include "uthash.h"
 #include <stdbool.h>
 
-typedef struct {
+typedef struct
+{
     char*          symbol;
     uint32_t       address;
     UT_hash_handle hh;

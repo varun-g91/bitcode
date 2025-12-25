@@ -26,11 +26,11 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 file(GLOB BITLANG_CORE_SOURCES
     "${CMAKE_SOURCE_DIR}/src/utils/*.c"
     "${CMAKE_SOURCE_DIR}/src/utils/*/*.c"
-    "${CMAKE_SOURCE_DIR}/src/lexer/*.c"
-    "${CMAKE_SOURCE_DIR}/src/parser/*.c"
     "${CMAKE_SOURCE_DIR}/src/vm/*.c"
     "${CMAKE_SOURCE_DIR}/src/vm/vm_utils/*.c"
     "${CMAKE_SOURCE_DIR}/src/assembler/*.c"
+    "${CMAKE_SOURCE_DIR}/src/assembler/lexer/*.c"
+    "${CMAKE_SOURCE_DIR}/src/assembler/parser/*.c"
 )
 # Note: The main file src/main.c should NOT be included here.
 
