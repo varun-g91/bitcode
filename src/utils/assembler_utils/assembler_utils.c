@@ -1,3 +1,4 @@
+#include "arena_allocator.h"
 #include "opcodes.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -30,5 +31,15 @@ bool is_opcode(const char* identifier)
     else
     {
         return true;
+    }
+}
+
+void normalize_string_2way(const char* s, bool capitalize)
+{
+    if (capitalize)
+    {
+        for (; *s; ++s)
+        {
+        }
     }
 }

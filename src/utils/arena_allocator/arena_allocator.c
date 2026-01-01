@@ -25,7 +25,7 @@ void* arena_alloc(MemoryArena* arena, size_t needed_size)
 
     if (required > arena->size)
     {
-        LOG_ERROR("OUT OF MEMORY! ABORTING...");
+        LOG_ERROR("OUT OF MEMORY! Required: %d; Available: %d\nABORTING...", required, arena->size);
         exit(1);
     }
 
@@ -79,11 +79,12 @@ void arena_free(MemoryArena* arena)
 
 char* arena_strdup(MemoryArena* arena, const char* s)
 {
-    const size_t len  = strlen(s) + 1;
-    char*        copy = (char*) arena_alloc(arena, len);
+    const size_t len  = strlen(s);
+    char*        copy = (char*) arena_alloc(arena, len + 1);
     if (copy)
     {
         memcpy(copy, s, len);
     }
+    copy[len] = '\0';
     return copy;
 }

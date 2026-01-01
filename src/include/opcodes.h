@@ -13,5 +13,6 @@ typedef struct
 extern const OpcodeEntry opcode_table[256];
 
 Opcode opcode_lookup(const char*);
+char*  ident_lookup(uint8_t opcode_id);
 
 #endif

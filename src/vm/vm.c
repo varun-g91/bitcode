@@ -298,7 +298,7 @@ int8_t execute_bytecode(VMContext* ctx, DecodedInstruction* instruction)
     VMState state = ctx->state;
     LOG_DEBUG("VM State: %d\n", state);
     Opcode opcode = instruction->opcode;
-    LOG_DEBUG("Opcode: %d\n", opcode);
+    LOG_DEBUG("Opcode: %x\n", opcode);
     int8_t status = opcode_handler[opcode](ctx, *instruction);
     if (status != VM_EXIT_SUCCESS)
     {

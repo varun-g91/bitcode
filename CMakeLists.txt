@@ -103,21 +103,27 @@ set_target_properties(bitlang PROPERTIES
 # 8.1. Enable CTest
 enable_testing()
 
-# Define the source files for the test executable
-set(TEST_SOURCES
-    tests/unity.c
-    tests/test_main.c
-    tests/test_lexer.c
-    tests/test_decoder.c 
-    tests/test_common.c
-    tests/test_vm.c
+file(GLOB_RECURSE BITLANG_TEST_SOURCES
+    "${CMAKE_SOURCE_DIR}/tests/assembler/*/*.c"
+    "${CMAKE_SOURCE_DIR}/tests/vm/*/*.c"
+    "${CMAKE_SOURCE_DIR}/tests/test_*.c"
+)
+add_library(unity STATIC
+    tests/unity/unity.c
 )
 
-# 8.2. Create the test executable
-add_executable(vm_tests ${TEST_SOURCES})
+target_include_directories(unity
+    PUBLIC
+        ${CMAKE_SOURCE_DIR}/tests/unity
+)# 8.2. Create the test executable
+add_executable(vm_tests ${BITLANG_TEST_SOURCES})
 
+target_include_directories(vm_tests
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/tests/include
+)
 # 8.3. Link the test executable to the core VM library
-target_link_libraries(vm_tests PRIVATE vm_library)
+target_link_libraries(vm_tests PRIVATE vm_library unity)
 
 # 8.4. Register the test executable with CTest
 add_test(NAME RunAllTests COMMAND vm_tests)

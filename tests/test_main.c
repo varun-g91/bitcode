@@ -1,9 +1,9 @@
 #include "unity_internals.h"
-#include "vm.h"
 #include <stdio.h>
 
 // External function declarations for the test suites
 void run_all_lexer_tests(void);
+void run_all_parser_tests(void);
 void run_all_decoder_tests(void);
 void run_all_vm_tests(void);
 
@@ -25,6 +25,7 @@ int main(void)
 
     // Call the functions that contain the RUN_TEST() calls for each suite
     run_all_lexer_tests();
+    run_all_parser_tests();
     run_all_decoder_tests();
     run_all_vm_tests();
 

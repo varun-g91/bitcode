@@ -1,6 +1,7 @@
 #include "arena_allocator.h"
 #include "lexer.h"
 #include "logger.h"
+#include "opcodes.h"
 #include "parser.h"
 #include "token_stream.h"
 #include "vm.h"
@@ -82,6 +83,44 @@ int main(int argc, char* argv[])
                 return status;
             }
 
+            LOG_DEBUG("Number of lies in program: %d", program.count);
+
+            for (int i = 0; i < program.count; i++)
+            {
+                Line line = program.lines[i];
+                LOG_DEBUG("program.lines[%d] => line.type => %d\n", i + 1, line.type);
+                switch (program.lines[i].type)
+                {
+                case LINE_LABEL_DEF:
+                {
+                    LOG_DEBUG("Label = %s\n", line.value.label);
+                    break;
+                }
+                case LINE_INSTRUCTION:
+                {
+                    LOG_DEBUG("instruction.opcode = %d\n", line.value.instruction.opcode);
+                    char* inst_ident = ident_lookup(line.value.instruction.opcode);
+                    if (!inst_ident)
+                    {
+                        LOG_DEBUG("Instruction Identifier NULL (possibly wrong opcode)");
+                    }
+                    else
+                    {
+                        LOG_DEBUG("instruction = %s\n", inst_ident);
+                    }
+                    LOG_DEBUG(
+                        "instruction.operands[0].type = %d; instruction.operands[1].type = %d",
+                        line.value.instruction.operand_types[0],
+                        line.value.instruction.operand_types[1]);
+                    break;
+                }
+                case LINE_DIRECTIVE:
+                {
+                    LOG_DEBUG("directive.type = %d\n", line.value.directive.type);
+                    break;
+                }
+                }
+            }
             arena_free(&arena);
         }
     }

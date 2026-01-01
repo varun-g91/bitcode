@@ -22,30 +22,30 @@ typedef enum
     // Arithmatic
     OP_ADD = 0x04,
     OP_SUB = 0x05,
-    OP_MUL = 0x07,
-    OP_DIV = 0x08,
-    OP_MOD = 0x09,
+    OP_MUL = 0x06,
+    OP_DIV = 0x07,
+    OP_MOD = 0x08,
     // Logical
-    OP_AND = 0x0a,
-    OP_OR  = 0x0b,
-    OP_NOT = 0x0C,
+    OP_AND = 0x09,
+    OP_OR  = 0x0a,
+    OP_NOT = 0x0B,
     // Control flow
-    OP_CMP = 0x0D,
-    OP_JZ  = 0x0E,
-    OP_JNZ = 0x0F,
-    OP_JEQ = 0x10,
-    OP_JGT = 0x11,
-    OP_JGE = 0x12,
-    OP_JLT = 0x13,
-    OP_JLE = 0x14,
-    OP_JMP = 0x15,
+    OP_CMP = 0x0C,
+    OP_JZ  = 0x0D,
+    OP_JNZ = 0x0E,
+    OP_JEQ = 0x0f,
+    OP_JGT = 0x10,
+    OP_JGE = 0x11,
+    OP_JLT = 0x12,
+    OP_JLE = 0x13,
+    OP_JMP = 0x14,
     // Procedure
-    OP_CALL = 0x16,
-    OP_RET  = 0x17,
+    OP_CALL = 0x15,
+    OP_RET  = 0x16,
     // Stack
-    OP_PUSH = 0x18,
-    OP_POP  = 0x19,
-    OP_HALT = 0x20,
+    OP_PUSH = 0x17,
+    OP_POP  = 0x18,
+    OP_HALT = 0x19,
     // Unknown
     OP_UNKNOWN = 0xFF
 } Opcode;
@@ -92,7 +92,7 @@ typedef struct
 int8_t run_parser(MemoryArena*, TokenStream*, Program*);
 int8_t parse_program(TokenStream*, MemoryArena*, Program*);
 
-int8_t parse_line(MemoryArena*, TokenStream*, int*, Line*);
+int8_t parse_line(MemoryArena*, TokenStream*, Line*);
 
 int8_t parse_label_def(TokenStream*, MemoryArena*, Line*);
 
@@ -100,7 +100,7 @@ int8_t parse_directive(TokenStream*, MemoryArena*, ParsedDirective*);
 
 int8_t parse_instruction(MemoryArena*, TokenStream*, Instruction*);
 
-int8_t parse_opcode(TokenStream*, uint8_t*);
+int8_t parse_opcode(TokenStream*, uint8_t*, MemoryArena*);
 
 void parse_comment();
 

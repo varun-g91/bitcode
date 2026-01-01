@@ -1,6 +1,5 @@
 #include "lexer.h"
 #include "arena_allocator.h"
-#include "instruction_format_table.h"
 #include "logger.h"
 #include <ctype.h>
 #include <stdbool.h>
@@ -17,18 +16,18 @@
 //  OPCODE LIST
 // ------------------------
 
-const char* const OPCODES[] = {"PRINT_CHR", "PRINT_STR", "MOV",  "LOAD_ADDR", "ADD", "SUB", "MUL",
-                               "DIV",       "MOD",       "AND",  "OR",        "NOT", "CMP", "JZ",
-                               "JNZ",       "JEQ",       "JGT",  "JGE",       "JLT", "JLE", "JMP",
-                               "CALL",      "RET",       "PUSH", "POP",       "HALT"};
+const char* const OPCODES[] = {"print_chr", "print_str", "mov",  "load_addr", "add", "sub", "mul",
+                               "div",       "mod",       "and",  "or",        "not", "cmp", "jz",
+                               "jnz",       "jeq",       "jgt",  "jge",       "jlt", "jle", "jmp",
+                               "call",      "ret",       "push", "pop",       "halt"};
 
 const int NUM_OPCODES = sizeof(OPCODES) / sizeof(OPCODES[0]);
 
-const char* const REGISTERS[] = {"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "SP", "BP", "HP"};
+const char* const REGISTERS[] = {"r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "sp", "bp", "hp"};
 
 const int NUM_REGISTERS = sizeof(REGISTERS) / sizeof(REGISTERS[0]);
 
-const char* const DIRECTIVES[] = {".START", ".DATA", ".RODATA", ".GLOBAL"};
+const char* const DIRECTIVES[] = {".start", ".data", ".rodata", ".global"};
 
 const int NUM_DIRECTIVES = sizeof(DIRECTIVES) / sizeof(DIRECTIVES[0]);
 
@@ -163,8 +162,15 @@ char** getLexemesInLine(MemoryArena* arena, char* line, int* count)
     return lexemes;
 }
 
-bool is_ident_start(char c) { return isalpha((unsigned char) c) || c == '_'; }
-bool is_ident_char(char c) { return isalnum((unsigned char) c) || c == '_'; }
+bool        is_ident_start(char c) { return isalpha((unsigned char) c) || c == '_'; }
+bool        is_ident_char(char c) { return isalnum((unsigned char) c) || c == '_'; }
+static void normalize_input(char* s)
+{
+    for (; *s; ++s)
+    {
+        *s = (char) tolower((unsigned char) *s);
+    }
+}
 
 Token* lexer(MemoryArena* arena, char** line, int count)
 {
@@ -193,9 +199,11 @@ Token* lexer(MemoryArena* arena, char** line, int count)
                 {
                     lexeme++;
                 }
-                token.kind             = TOK_IDENTIFIER;
-                token.lexeme           = start;
-                token.value.identifier = start;
+                token.kind = TOK_IDENTIFIER;
+                char* temp = arena_strdup(arena, start);
+                normalize_input(temp);
+                token.lexeme           = temp;
+                token.value.identifier = temp;
             }
             else if (isRegister(lexeme))
             {
@@ -234,7 +242,7 @@ Token* lexer(MemoryArena* arena, char** line, int count)
                     }
                     else
                     {
-                        long long value = strtoll((const char*) lexeme, NULL, 16);
+                        long long value = strtoll((const char*) lexeme, NULL, 10);
                         if (value > UINT32_MAX)
                         {
                             LOG_ERROR("Literal longer than 32 bits is not supported.");
@@ -282,9 +290,11 @@ Token* lexer(MemoryArena* arena, char** line, int count)
                 // Directives (starts with '.')
                 else if (lexeme[0] == '.' && lexeme[1] != '\0' && strlen(lexeme) > 3)
                 {
-                    token.kind            = TOK_DIRECTIVE;
-                    token.lexeme          = lexeme;
-                    Directive directive   = getDirectiveType(lexeme);
+                    Directive directive = getDirectiveType(lexeme);
+                    token.kind          = TOK_DIRECTIVE;
+                    char* temp          = arena_strdup(arena, lexeme);
+                    normalize_input(temp);
+                    token.lexeme          = temp;
                     token.value.directive = directive;
                 }
             }

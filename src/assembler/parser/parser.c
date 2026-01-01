@@ -28,22 +28,36 @@ int8_t parse_program(TokenStream* stream, MemoryArena* arena, Program* out)
     out->lines     = arena_calloc(arena, out->capcity, sizeof(Line));
     if (out->lines == NULL)
     {
-        LOG_ERROR("Error trying to allocate memory for lines");
+        LOG_ERROR("Failed to allocated memory for lines.");
         return -1;
     }
-    if (stream->current == NULL)
-    {
-    }
+    LOG_DEBUG("Allocated space for %d lines", out->capcity);
+
     while (stream->current != NULL)
     {
+        Token token = peek(stream);
+        if (token.kind == TOK_SEPARATOR && token.value.sep == SEP_EOL)
+        {
+            consume(stream);
+            continue;
+        }
+        if (token.kind == TOK_EOF)
+        {
+            break;
+        }
+
         if (line_count == out->capcity)
         {
             LOG_ERROR("MAX LINE CAPACITY REACHED!");
             exit(1);
         }
 
-        int8_t status = parse_line(arena, stream, &line_count, &out->lines[line_count]);
-        if (status != 0)
+        int8_t status = parse_line(arena, stream, &out->lines[line_count]);
+        if (status == 0)
+        {
+            line_count++;
+        }
+        else
         {
             LOG_ERROR("Error while parsing line!");
             return status;
@@ -55,7 +69,7 @@ int8_t parse_program(TokenStream* stream, MemoryArena* arena, Program* out)
     return 0;
 }
 
-int8_t parse_line(MemoryArena* arena, TokenStream* stream, int* line_count, Line* out)
+int8_t parse_line(MemoryArena* arena, TokenStream* stream, Line* out)
 {
     Token token = peek(stream);
     switch (token.kind)
@@ -66,12 +80,7 @@ int8_t parse_line(MemoryArena* arena, TokenStream* stream, int* line_count, Line
     }
     case TOK_SEPARATOR:
     {
-        if (token.value.sep == SEP_EOL)
-        {
-            *line_count += 1;
-        }
-        consume(stream);
-        return 0;
+        break;
     }
     case TOK_DIRECTIVE:
     {
@@ -88,8 +97,6 @@ int8_t parse_line(MemoryArena* arena, TokenStream* stream, int* line_count, Line
         out->value.directive = directive;
         break;
     }
-    case TOK_UNKNOWN:
-        break;
     case TOK_IDENTIFIER:
     {
         char* s = token.value.identifier;
@@ -101,13 +108,11 @@ int8_t parse_line(MemoryArena* arena, TokenStream* stream, int* line_count, Line
                 LOG_ERROR("Error while parsing label_def!");
                 return -1;
             }
-            line_count++;
-
             break;
         }
         else
         {
-            if (is_opcode(token.value.identifier))
+            if (is_opcode(token.value.identifier, arena))
             {
                 Instruction instruction;
 
@@ -133,6 +138,8 @@ int8_t parse_line(MemoryArena* arena, TokenStream* stream, int* line_count, Line
         consume(stream);
         return 0;
     }
+    case TOK_UNKNOWN:
+        break;
     default:
     {
         LOG_ERROR("Expected identifier or directive. Found %s", token.lexeme);
@@ -146,8 +153,8 @@ int8_t parse_label_def(TokenStream* stream, MemoryArena* arena, Line* out)
 {
     Token token = peek(stream);
 
-    size_t len = strlen(token.value.identifier) - 2;
-    char*  s   = (char*) arena_alloc(arena, sizeof(char));
+    size_t len = strlen(token.value.identifier) - 1;
+    char*  s   = (char*) arena_alloc(arena, len + 1);
     if (s == NULL)
     {
         LOG_ERROR("Failed to allocate memory!");
@@ -170,7 +177,7 @@ int8_t parse_instruction(MemoryArena* arena, TokenStream* stream, Instruction* o
     if (token.kind == TOK_IDENTIFIER)
     {
         uint8_t opcode_id = 0xFF;
-        int8_t  status    = parse_opcode(stream, &opcode_id);
+        int8_t  status    = parse_opcode(stream, &opcode_id, arena);
         if (status != 0 || opcode_id == 0xFF)
         {
             LOG_ERROR("Failed to parse opcode");
@@ -235,13 +242,14 @@ int8_t parse_instruction(MemoryArena* arena, TokenStream* stream, Instruction* o
     return 0;
 }
 
-int8_t parse_opcode(TokenStream* stream, uint8_t* out)
+int8_t parse_opcode(TokenStream* stream, uint8_t* out, MemoryArena* arena)
 {
     Token token = peek(stream);
     if (token.kind == TOK_IDENTIFIER)
     {
         const char* opcode_name = token.value.identifier;
-        uint8_t     opcode_id   = opcode_lookup(opcode_name);
+        char*       temp        = arena_strdup(arena, opcode_name);
+        uint8_t     opcode_id   = opcode_lookup(temp);
         if (opcode_id == 0xFF)
         {
             LOG_ERROR("Unknown opcode found!");

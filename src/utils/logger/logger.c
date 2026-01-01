@@ -1,6 +1,7 @@
 #include "logger.h"
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 // Set your default level here. E.g., INFO shows errors, warnings, and general info.
 LogLevel g_compiler_log_level = LOG_LEVEL_DEBUG;
